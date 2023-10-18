@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 
 import type { Space, CursorUpdate as _CursorUpdate } from "@ably/spaces";
-import CursorSvg from "./CursorSvg";
 import useCursor from "../hooks/useCursor";
 import { Member } from "../utils/types";
+import CursorSvg from "./CursorSvg";
 
 // 💡 This component is used to render the cursor of the user
 const YourCursor = ({
@@ -24,7 +24,7 @@ const YourCursor = ({
     setCursorPosition,
     parentRef,
     space,
-    self?.connectionId,
+    self?.connectionId
   );
   if (!self) {
     return null;

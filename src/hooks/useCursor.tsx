@@ -14,10 +14,10 @@ const useCursor = (
   }) => void,
   parentRef: React.RefObject<HTMLDivElement>,
   space?: Space,
-  selfConnectionId?: string,
+  selfConnectionId?: string
 ) => {
   let handleSelfCursorMove: (
-    event: React.MouseEvent<HTMLElement, MouseEvent>,
+    event: React.MouseEvent<HTMLElement, MouseEvent>
   ) => void = () => {};
 
   useEffect(() => {

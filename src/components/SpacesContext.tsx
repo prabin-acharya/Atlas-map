@@ -1,37 +1,36 @@
 import Spaces, { type Space } from "@ably/spaces";
 import { useAbly } from "ably/react";
-import * as React from "react";
-
+import { createContext, useEffect, useMemo, useState } from "react";
 import { getSpaceNameFromUrl } from "../utils/helpers";
 
-const SpacesContext = React.createContext<Space | undefined>(undefined);
+const SpacesContext = createContext<Space | undefined>(undefined);
 
-const SpaceContextProvider: React.FC<{
+const SpaceContextProvider = ({
+  example,
+  children,
+}: {
   example: string;
   children: React.ReactNode;
-}> = ({ example, children }) => {
-  const [space, setSpace] = React.useState<Space | undefined>(undefined);
+}) => {
+  const [space, setSpace] = useState<Space | undefined>(undefined);
   const client = useAbly();
 
-  const spaces = React.useMemo(() => {
-    return new Spaces(client);
-  }, [example]);
+  const spaces = useMemo(() => new Spaces(client), [example]);
 
-  React.useEffect(() => {
-    let ignore: boolean = false;
+  useEffect(() => {
+    let ignore = false;
     const spaceName = getSpaceNameFromUrl();
 
-    const init = async () => {
+    const initSpace = async () => {
       const spaceInstance = await spaces.get(spaceName, {
         offlineTimeout: 10_000,
       });
-
       if (spaceInstance && !space && !ignore) {
         setSpace(spaceInstance);
       }
     };
 
-    init();
+    initSpace();
 
     return () => {
       ignore = true;

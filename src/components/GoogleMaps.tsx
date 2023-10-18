@@ -18,15 +18,6 @@ const GoogleMaps = () => {
     null
   );
 
-  // const handleAddMarker = () => {
-  //   console.log("Add Marker clicked");
-  //   if (drawingManagerRef.current) {
-  //     drawingManagerRef.current.setDrawingMode(
-  //       google.maps.drawing.OverlayType.MARKER
-  //     );
-  //   }
-  // };
-
   console.log("MAPS", "########################");
 
   const onPolygonComplete = (polygon: google.maps.Polygon) => {
