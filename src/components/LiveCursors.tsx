@@ -7,6 +7,7 @@ import { SpacesContext } from "./SpacesContext";
 
 import type { SpaceMember } from "@ably/spaces";
 import type { Member } from "../utils/types";
+import GoogleMaps from "./GoogleMaps";
 
 const mockName = () => mockNames[Math.floor(Math.random() * mockNames.length)];
 
@@ -28,20 +29,14 @@ const LiveCursors = () => {
   const liveCursors = useRef(null);
 
   return (
-    <div
-      // id="live-cursors"
-      // ref={liveCursors}
-      // className="live-cursors-container example-container border-2 border-red-600 p-3 py-3"
-      // className="border-2 border-red-600 h-screen"
-      className="flex flex-col border-2 border-red-600 h-screen"
-    >
+    <div className="flex flex-col border-2 border-red-600 h-screen">
       <div className="w-full h-14 bg-slate-600"></div>
       <div
         id="live-cursors"
         ref={liveCursors}
-        // className=" flex justify-center items-center relative w-full h-full border-2 border-green-600 "
-        className="flex-grow flex justify-center items-center relative w-full border-2 border-green-600 "
+        className="flex-grow flex justify-center items-center relative w-full border-4 border-green-600 "
       >
+        <GoogleMaps />
         <YourCursor
           self={self as Member | null}
           space={space}

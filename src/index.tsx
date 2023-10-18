@@ -10,7 +10,7 @@ import "./styles/tailwind.css";
 
 const client = new Realtime.Promise({
   clientId: nanoid(),
-  key: "qhsChQ.3GgEbQ:_1oajH3U0m3mo8cgILQm2JZaCsYHjpHkYcvQhJAg8do",
+  key: import.meta.env.VITE_ABLY_KEY,
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -19,5 +19,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   // @ts-ignore
   <AblyProvider client={client}>
     <App />
-  </AblyProvider>,
+  </AblyProvider>
 );
