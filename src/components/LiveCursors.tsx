@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import useSpaceMembers from "../hooks/useMembers";
 import { colours } from "../utils/helpers";
 import { mockNames } from "../utils/mockNames";
@@ -28,6 +28,12 @@ const LiveCursors = () => {
 
   const liveCursors = useRef(null);
 
+  //
+  const [currentDrawingMode, setCurrentDrawingMode] =
+    useState<google.maps.drawing.OverlayType | null>(null);
+
+  console.log("LiveCursors++++___________________");
+
   return (
     <div className="flex flex-col border-2 border-red-600 h-screen">
       <div className="w-full h-14 bg-slate-600"></div>
@@ -36,7 +42,10 @@ const LiveCursors = () => {
         ref={liveCursors}
         className="flex-grow flex justify-center items-center relative w-full border-4 border-green-600 "
       >
-        <GoogleMaps />
+        <GoogleMaps
+          currentDrawingMode={currentDrawingMode}
+          setCurrentDrawingMode={setCurrentDrawingMode}
+        />
         <YourCursor
           self={self as Member | null}
           space={space}

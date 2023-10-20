@@ -6,27 +6,35 @@ import {
 } from "@react-google-maps/api";
 import { useAbly } from "ably/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import MapActionBar from "./MapActionBar";
 
 type Library = "places" | "geometry" | "visualization" | "drawing";
 const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
 
-const GoogleMaps = () => {
+interface Props {
+  currentDrawingMode: google.maps.drawing.OverlayType | null;
+  setCurrentDrawingMode: React.Dispatch<
+    React.SetStateAction<google.maps.drawing.OverlayType | null>
+  >;
+}
+
+const GoogleMaps: React.FC<Props> = ({
+  currentDrawingMode,
+  setCurrentDrawingMode,
+}) => {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries: libraries,
   });
 
-  const center = useMemo(() => ({ lat: 18.52043, lng: 73.856743 }), []);
+  const client = useAbly();
+  const mapChannel = client.channels.get("map-updates");
 
   const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(
     null
   );
 
-  //
-  //
-
-  const client = useAbly();
-  const mapChannel = client.channels.get("map-updates");
+  const center = useMemo(() => ({ lat: 18.52043, lng: 73.856743 }), []);
 
   const [markers, setMarkers] = useState<
     Array<google.maps.LatLngLiteral | undefined>
@@ -49,7 +57,6 @@ const GoogleMaps = () => {
     };
   }, []);
 
-  //
   const onMarkerComplete = (marker: google.maps.Marker) => {
     const newMarker = marker.getPosition()?.toJSON();
 
@@ -59,19 +66,7 @@ const GoogleMaps = () => {
     }
   };
 
-  console.log("MAPS", "########################");
-
-  const onPolygonComplete = (polygon: google.maps.Polygon) => {
-    const path = polygon
-      .getPath()
-      .getArray()
-      .map((coord) => {
-        return {
-          lat: coord.lat(),
-          lng: coord.lng(),
-        };
-      });
-  };
+  console.log("MAPS", "########################++");
 
   return (
     <div className="h-full w-full">
@@ -87,10 +82,9 @@ const GoogleMaps = () => {
             <DrawingManager
               ref={drawingManagerRef as React.RefObject<DrawingManager>}
               onMarkerComplete={onMarkerComplete}
-              onPolygonComplete={onPolygonComplete}
               options={{
-                drawingMode: null, // Start without any drawing mode
-                drawingControl: true,
+                drawingMode: currentDrawingMode,
+                drawingControl: false,
                 drawingControlOptions: {
                   position: window.google.maps.ControlPosition.TOP_CENTER,
                   drawingModes: [
@@ -105,6 +99,10 @@ const GoogleMaps = () => {
               marker ? <Marker key={index} position={marker} /> : null
             )}
           </GoogleMap>
+          <MapActionBar
+            currentDrawingMode={currentDrawingMode}
+            setCurrentDrawingMode={setCurrentDrawingMode}
+          />
         </>
       )}
     </div>
