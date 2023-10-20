@@ -57,9 +57,20 @@ const GoogleMaps: React.FC<Props> = ({
       }
     );
 
+    const dragMarkerSubscription = mapChannel.subscribe(
+      "drag-marker",
+      (message: { data: { id: string; lat: number; lng: number } }) => {
+        const { id, ...draggedMarker } = message.data;
+        setMarkers((prevMarkers) => ({
+          ...prevMarkers,
+          [id]: draggedMarker,
+        }));
+      }
+    );
     return () => {
       newMarkerSubscription.unsubscribe();
       updateMarkerSubscription.unsubscribe();
+      dragMarkerSubscription.unsubscribe();
     };
   }, []);
 
@@ -91,6 +102,23 @@ const GoogleMaps: React.FC<Props> = ({
       return updatedMarkers;
     });
     mapChannel.publish("update-marker", { id, ...newPosition });
+  };
+
+  const handleDrag = (
+    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
+    id: string
+  ) => {
+    const newPosition = e.latLng?.toJSON();
+    if (!newPosition) {
+      console.log("marker not addedddd!!!!");
+      return;
+    }
+    setMarkers((prevMarkers) => {
+      const updatedMarkers = { ...prevMarkers };
+      updatedMarkers[id] = newPosition;
+      return updatedMarkers;
+    });
+    mapChannel.publish("drag-marker", { id, ...newPosition });
   };
 
   console.log("MAPS", "########################++");
@@ -128,6 +156,7 @@ const GoogleMaps: React.FC<Props> = ({
                   key={id}
                   position={marker}
                   draggable={true}
+                  onDrag={(e) => handleDrag(e, id)}
                   onDragEnd={(e) => handleDragEnd(e, id)}
                 />
               ) : null
