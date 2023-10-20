@@ -2,6 +2,7 @@ import {
   DrawingManager,
   GoogleMap,
   Marker,
+  Polyline,
   useLoadScript,
 } from "@react-google-maps/api";
 import { useAbly } from "ably/react";
@@ -67,10 +68,25 @@ const GoogleMaps: React.FC<Props> = ({
         }));
       }
     );
+
+    const newPolylineSubscription = mapChannel.subscribe(
+      "new-polyline",
+      (message: {
+        data: { id: string; polylinePoints: google.maps.LatLngLiteral[] };
+      }) => {
+        const { id, polylinePoints } = message.data;
+        setPolylines((prevPolylines) => ({
+          ...prevPolylines,
+          [id]: polylinePoints,
+        }));
+      }
+    );
+
     return () => {
       newMarkerSubscription.unsubscribe();
       updateMarkerSubscription.unsubscribe();
       dragMarkerSubscription.unsubscribe();
+      newPolylineSubscription.unsubscribe();
     };
   }, []);
 
@@ -121,6 +137,34 @@ const GoogleMaps: React.FC<Props> = ({
     mapChannel.publish("drag-marker", { id, ...newPosition });
   };
 
+  //
+  //
+  //
+  //
+  //
+
+  const [polylines, setPolylines] = useState<{
+    [key: string]: google.maps.LatLngLiteral[];
+  }>({});
+
+  const onPolylineComplete = (polyline: google.maps.Polyline) => {
+    const pathArray = polyline.getPath().getArray();
+    const polylinePoints: google.maps.LatLngLiteral[] = pathArray.map((point) =>
+      point.toJSON()
+    );
+
+    if (polylinePoints.length) {
+      const id = Date.now().toString();
+      setPolylines((prevPolylines) => ({
+        ...prevPolylines,
+        [id]: polylinePoints,
+      }));
+      mapChannel.publish("new-polyline", { id, polylinePoints });
+    }
+
+    polyline.setMap(null);
+  };
+
   console.log("MAPS", "########################++");
 
   return (
@@ -137,6 +181,7 @@ const GoogleMaps: React.FC<Props> = ({
             <DrawingManager
               ref={drawingManagerRef as React.RefObject<DrawingManager>}
               onMarkerComplete={onMarkerComplete}
+              onPolylineComplete={onPolylineComplete}
               options={{
                 drawingMode: currentDrawingMode,
                 drawingControl: false,
@@ -161,6 +206,9 @@ const GoogleMaps: React.FC<Props> = ({
                 />
               ) : null
             )}
+            {Object.entries(polylines).map(([id, points]) => (
+              <Polyline key={id} path={points} />
+            ))}
           </GoogleMap>
           <MapActionBar
             currentDrawingMode={currentDrawingMode}
