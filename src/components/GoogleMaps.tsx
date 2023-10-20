@@ -36,34 +36,61 @@ const GoogleMaps: React.FC<Props> = ({
 
   const center = useMemo(() => ({ lat: 18.52043, lng: 73.856743 }), []);
 
-  const [markers, setMarkers] = useState<
-    Array<google.maps.LatLngLiteral | undefined>
-  >([]);
+  const [markers, setMarkers] = useState<{
+    [key: string]: google.maps.LatLngLiteral;
+  }>({});
 
   useEffect(() => {
-    const subscription = mapChannel.subscribe(
+    const newMarkerSubscription = mapChannel.subscribe(
       "new-marker",
-      (message: { data: google.maps.LatLngLiteral }) => {
-        const newMarker = message.data;
+      (message: { data: { id: string; lat: number; lng: number } }) => {
+        const { id, ...newMarker } = message.data;
+        setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: newMarker }));
+      }
+    );
 
-        if (newMarker) {
-          setMarkers((prevMarkers) => [...prevMarkers, newMarker]);
-        }
+    const updateMarkerSubscription = mapChannel.subscribe(
+      "update-marker",
+      (message: { data: { id: string; lat: number; lng: number } }) => {
+        const { id, ...updatedMarker } = message.data;
+        setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: updatedMarker }));
       }
     );
 
     return () => {
-      subscription.unsubscribe();
+      newMarkerSubscription.unsubscribe();
+      updateMarkerSubscription.unsubscribe();
     };
   }, []);
 
+  console.log(markers, "===");
+
   const onMarkerComplete = (marker: google.maps.Marker) => {
     const newMarker = marker.getPosition()?.toJSON();
-
+    console.log("marker added!");
     if (newMarker) {
-      setMarkers((prevMarkers) => [...prevMarkers, newMarker]);
-      mapChannel.publish("new-marker", newMarker);
+      const id = Date.now().toString();
+      setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: newMarker }));
+      mapChannel.publish("new-marker", { id, ...newMarker });
     }
+    marker.setMap(null);
+  };
+
+  const handleDragEnd = (
+    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
+    id: string
+  ) => {
+    const newPosition = e.latLng?.toJSON();
+    if (!newPosition) {
+      console.log("marker not addedddd!!!!");
+      return;
+    }
+    setMarkers((prevMarkers) => {
+      const updatedMarkers = { ...prevMarkers };
+      updatedMarkers[id] = newPosition;
+      return updatedMarkers;
+    });
+    mapChannel.publish("update-marker", { id, ...newPosition });
   };
 
   console.log("MAPS", "########################++");
@@ -95,8 +122,15 @@ const GoogleMaps: React.FC<Props> = ({
                 },
               }}
             />
-            {markers.map((marker, index) =>
-              marker ? <Marker key={index} position={marker} /> : null
+            {Object.entries(markers).map(([id, marker]) =>
+              marker ? (
+                <Marker
+                  key={id}
+                  position={marker}
+                  draggable={true}
+                  onDragEnd={(e) => handleDragEnd(e, id)}
+                />
+              ) : null
             )}
           </GoogleMap>
           <MapActionBar
