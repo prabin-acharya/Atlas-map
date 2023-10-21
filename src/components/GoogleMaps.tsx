@@ -90,8 +90,6 @@ const GoogleMaps: React.FC<Props> = ({
     };
   }, []);
 
-  console.log(markers, "===");
-
   const onMarkerComplete = (marker: google.maps.Marker) => {
     const newMarker = marker.getPosition()?.toJSON();
     console.log("marker added!");
@@ -164,8 +162,85 @@ const GoogleMaps: React.FC<Props> = ({
 
     polyline.setMap(null);
   };
+  //
+  //
+  //
+  //
+
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentPath, setCurrentPath] = useState<google.maps.LatLngLiteral[]>(
+    []
+  );
+  const [freehandPaths, setFreehandPaths] = useState<
+    Record<string, google.maps.LatLngLiteral[]>
+  >({});
+
+  const [googleMapInstance, setGoogleMapInstance] =
+    useState<google.maps.Map | null>(null);
+
+  useEffect(() => {
+    let mousedownListener: google.maps.MapsEventListener | null = null;
+    let mousemoveListener: google.maps.MapsEventListener | null = null;
+    let mouseupListener: google.maps.MapsEventListener | null = null;
+
+    const onMouseDown = (e: google.maps.MapMouseEvent) => {
+      setIsDrawing(true);
+      setCurrentPath([e.latLng.toJSON()]);
+      console.log("mouseDown");
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: false });
+      }
+    };
+
+    const onMouseMove = (e: google.maps.MapMouseEvent) => {
+      if (!isDrawing) return;
+      console.log("mouseMove");
+      setCurrentPath((prev) => [...prev, e.latLng.toJSON()]);
+    };
+
+    const onMouseUp = () => {
+      setIsDrawing(false);
+      const id = Date.now().toString();
+      setFreehandPaths((prev) => ({ ...prev, [id]: currentPath }));
+      setCurrentPath([]);
+      console.log("MouseUp");
+    };
+
+    const onMouseUpGlobal = () => {
+      setIsDrawing(false);
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: true });
+      }
+      const id = Date.now().toString();
+      setFreehandPaths((prev) => ({ ...prev, [id]: currentPath }));
+      setCurrentPath([]);
+    };
+
+    document.addEventListener("mouseup", onMouseUpGlobal);
+
+    if (googleMapInstance) {
+      mousedownListener = googleMapInstance.addListener(
+        "mousedown",
+        onMouseDown
+      );
+      mousemoveListener = googleMapInstance.addListener(
+        "mousemove",
+        onMouseMove
+      );
+      mouseupListener = googleMapInstance.addListener("mouseup", onMouseUp);
+    }
+
+    return () => {
+      mousedownListener?.remove();
+      mousemoveListener?.remove();
+      mouseupListener?.remove();
+      document.removeEventListener("mouseup", onMouseUpGlobal);
+    };
+  }, [isDrawing, currentPath, googleMapInstance]);
 
   console.log("MAPS", "########################++");
+
+  console.log(currentPath);
 
   return (
     <div className="h-full w-full">
@@ -174,11 +249,13 @@ const GoogleMaps: React.FC<Props> = ({
       ) : (
         <>
           <GoogleMap
+            onLoad={(map) => setGoogleMapInstance(map)}
+            // ref={googleMapRef}
             mapContainerClassName="h-full w-full rounded border"
             center={center}
             zoom={10}
           >
-            <DrawingManager
+            {/* <DrawingManager
               ref={drawingManagerRef as React.RefObject<DrawingManager>}
               onMarkerComplete={onMarkerComplete}
               onPolylineComplete={onPolylineComplete}
@@ -194,7 +271,7 @@ const GoogleMaps: React.FC<Props> = ({
                   ],
                 },
               }}
-            />
+            /> */}
             {Object.entries(markers).map(([id, marker]) =>
               marker ? (
                 <Marker
@@ -206,9 +283,22 @@ const GoogleMaps: React.FC<Props> = ({
                 />
               ) : null
             )}
-            {Object.entries(polylines).map(([id, points]) => (
+            {/* {Object.entries(polylines).map(([id, points]) => (
               <Polyline key={id} path={points} />
+            ))} */}
+            {Object.entries(freehandPaths).map(([id, path]) => (
+              <Polyline
+                key={id}
+                path={path}
+                options={{ strokeColor: "#FF0000" }}
+              />
             ))}
+            {isDrawing && (
+              <Polyline
+                path={currentPath}
+                options={{ strokeColor: "#00FF00" }}
+              />
+            )}
           </GoogleMap>
           <MapActionBar
             currentDrawingMode={currentDrawingMode}
