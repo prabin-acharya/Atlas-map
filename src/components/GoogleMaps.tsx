@@ -6,17 +6,23 @@ import {
   useLoadScript,
 } from "@react-google-maps/api";
 import { useAbly } from "ably/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Dispatch,
+  SetStateAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { DrawingMode } from "../types";
 import MapActionBar from "./MapActionBar";
 
 type Library = "places" | "geometry" | "visualization" | "drawing";
 const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
 
 interface Props {
-  currentDrawingMode: google.maps.drawing.OverlayType | null;
-  setCurrentDrawingMode: React.Dispatch<
-    React.SetStateAction<google.maps.drawing.OverlayType | null>
-  >;
+  currentDrawingMode: DrawingMode | null;
+  setCurrentDrawingMode: Dispatch<SetStateAction<DrawingMode | null>>;
 }
 
 const GoogleMaps: React.FC<Props> = ({
@@ -31,15 +37,11 @@ const GoogleMaps: React.FC<Props> = ({
   const client = useAbly();
   const mapChannel = client.channels.get("map-updates");
 
-  const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(
-    null
-  );
-
   const center = useMemo(() => ({ lat: 18.52043, lng: 73.856743 }), []);
 
-  const [markers, setMarkers] = useState<{
-    [key: string]: google.maps.LatLngLiteral;
-  }>({});
+  const [markers, setMarkers] = useState<
+    Record<string, google.maps.LatLngLiteral>
+  >({});
 
   useEffect(() => {
     const newMarkerSubscription = mapChannel.subscribe(
@@ -182,6 +184,14 @@ const GoogleMaps: React.FC<Props> = ({
     let mousedownListener: google.maps.MapsEventListener | null = null;
     let mousemoveListener: google.maps.MapsEventListener | null = null;
     let mouseupListener: google.maps.MapsEventListener | null = null;
+    let clickListener: google.maps.MapsEventListener | null = null;
+
+    const onClick = (e: google.maps.MapMouseEvent) => {
+      console.log("Clickkkkkkk!!!!!!!");
+      if (currentDrawingMode !== "MARKER") return;
+      const id = Date.now().toString();
+      setMarkers((prev) => ({ ...prev, [id]: e.latLng.toJSON() }));
+    };
 
     const onMouseDown = (e: google.maps.MapMouseEvent) => {
       setIsDrawing(true);
@@ -228,6 +238,7 @@ const GoogleMaps: React.FC<Props> = ({
         onMouseMove
       );
       mouseupListener = googleMapInstance.addListener("mouseup", onMouseUp);
+      clickListener = googleMapInstance.addListener("click", onClick);
     }
 
     return () => {
@@ -236,7 +247,7 @@ const GoogleMaps: React.FC<Props> = ({
       mouseupListener?.remove();
       document.removeEventListener("mouseup", onMouseUpGlobal);
     };
-  }, [isDrawing, currentPath, googleMapInstance]);
+  }, [isDrawing, currentPath, googleMapInstance, markers]);
 
   console.log("MAPS", "########################++");
 
@@ -255,24 +266,7 @@ const GoogleMaps: React.FC<Props> = ({
             center={center}
             zoom={10}
           >
-            {/* <DrawingManager
-              ref={drawingManagerRef as React.RefObject<DrawingManager>}
-              onMarkerComplete={onMarkerComplete}
-              onPolylineComplete={onPolylineComplete}
-              options={{
-                drawingMode: currentDrawingMode,
-                drawingControl: false,
-                drawingControlOptions: {
-                  position: window.google.maps.ControlPosition.TOP_CENTER,
-                  drawingModes: [
-                    window.google.maps.drawing.OverlayType.MARKER,
-                    window.google.maps.drawing.OverlayType.POLYLINE,
-                    window.google.maps.drawing.OverlayType.POLYGON,
-                  ],
-                },
-              }}
-            /> */}
-            {Object.entries(markers).map(([id, marker]) =>
+            {/* {Object.entries(markers).map(([id, marker]) =>
               marker ? (
                 <Marker
                   key={id}
@@ -282,7 +276,16 @@ const GoogleMaps: React.FC<Props> = ({
                   onDragEnd={(e) => handleDragEnd(e, id)}
                 />
               ) : null
-            )}
+            )} */}
+            {Object.entries(markers).map(([id, position]) => (
+              <Marker
+                key={id}
+                position={position}
+                draggable={true}
+                onDrag={(e) => handleDrag(e, id)}
+                onDragEnd={(e) => handleDragEnd(e, id)}
+              />
+            ))}
             {/* {Object.entries(polylines).map(([id, points]) => (
               <Polyline key={id} path={points} />
             ))} */}

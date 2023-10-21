@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import useSpaceMembers from "../hooks/useMembers";
+import { DrawingMode } from "../types";
 import { colours } from "../utils/helpers";
 import { mockNames } from "../utils/mockNames";
 import { MemberCursors, YourCursor } from "./Cursors";
@@ -28,11 +29,10 @@ const LiveCursors = () => {
 
   const liveCursors = useRef(null);
 
-  //
   const [currentDrawingMode, setCurrentDrawingMode] =
-    useState<google.maps.drawing.OverlayType | null>(null);
+    useState<DrawingMode | null>(null);
 
-  console.log("LiveCursors++++___________________");
+  console.log("LiveCursors+++--------------------------------------");
 
   return (
     <div className="flex flex-col border-2 border-red-600 h-screen">
