@@ -193,6 +193,12 @@ const GoogleMaps: React.FC<Props> = ({
           if (latLng !== null) {
             const id = Date.now().toString();
             setMarkers((prev) => ({ ...prev, [id]: latLng.toJSON() }));
+
+            const newMarker = latLng.toJSON();
+            mapChannel.publish("new-marker", {
+              id,
+              ...newMarker,
+            });
           }
           break;
         default:
@@ -317,6 +323,7 @@ const GoogleMaps: React.FC<Props> = ({
                 draggable={true}
               />
             ))}
+
             {isDrawing && (
               <Polyline
                 path={currentPath}
