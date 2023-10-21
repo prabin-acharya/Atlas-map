@@ -189,8 +189,11 @@ const GoogleMaps: React.FC<Props> = ({
     const onClick = (e: google.maps.MapMouseEvent) => {
       switch (currentDrawingMode) {
         case "MARKER":
-          const id = Date.now().toString();
-          setMarkers((prev) => ({ ...prev, [id]: e.latLng.toJSON() }));
+          const latLng = e.latLng;
+          if (latLng !== null) {
+            const id = Date.now().toString();
+            setMarkers((prev) => ({ ...prev, [id]: latLng.toJSON() }));
+          }
           break;
         default:
           break;
@@ -201,7 +204,7 @@ const GoogleMaps: React.FC<Props> = ({
       switch (currentDrawingMode) {
         case "FREEHAND":
           setIsDrawing(true);
-          setCurrentPath([e.latLng.toJSON()]);
+          if (e.latLng) setCurrentPath([e.latLng.toJSON()]);
           if (googleMapInstance) {
             googleMapInstance.setOptions({ draggable: false });
           }
@@ -214,9 +217,10 @@ const GoogleMaps: React.FC<Props> = ({
     const onMouseMove = (e: google.maps.MapMouseEvent) => {
       switch (currentDrawingMode) {
         case "FREEHAND":
-          if (isDrawing) {
-            setCurrentPath((prev) => [...prev, e.latLng.toJSON()]);
+          if (isDrawing && e.latLng) {
+            setCurrentPath((prev) => [...prev, e.latLng!.toJSON()]);
           }
+
           break;
         // Additional cases for new drawing modes can go here
         default:
