@@ -1,5 +1,9 @@
+import type {
+  Space,
+  SpaceMember,
+  CursorUpdate as _CursorUpdate,
+} from "@ably/spaces";
 import {
-  DrawingManager,
   GoogleMap,
   Marker,
   Polyline,
@@ -14,7 +18,11 @@ import {
   useRef,
   useState,
 } from "react";
+import useSpaceMembers from "../hooks/useMembers";
+
 import { DrawingMode } from "../types";
+import { Member } from "../utils/types";
+import { MemberCursors, YourCursor } from "./Cursors";
 import MapActionBar from "./MapActionBar";
 
 type Library = "places" | "geometry" | "visualization" | "drawing";
@@ -23,12 +31,24 @@ const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
 interface Props {
   currentDrawingMode: DrawingMode | null;
   setCurrentDrawingMode: Dispatch<SetStateAction<DrawingMode | null>>;
+  space?: Space;
+  selfConnectionId?: string;
 }
+
+type TextOverlay = {
+  position: google.maps.LatLngLiteral | null | undefined;
+  content: string;
+  isEditing?: boolean;
+};
 
 const GoogleMaps: React.FC<Props> = ({
   currentDrawingMode,
   setCurrentDrawingMode,
+  space,
+  selfConnectionId,
 }) => {
+  if (!space) return;
+
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries: libraries,
@@ -180,6 +200,20 @@ const GoogleMaps: React.FC<Props> = ({
   const [googleMapInstance, setGoogleMapInstance] =
     useState<google.maps.Map | null>(null);
 
+  const [textOverlays, setTextOverlays] = useState<Record<string, TextOverlay>>(
+    {}
+  );
+
+  const handleTextClick = (id: string) => {
+    const newText = prompt("Edit your text", textOverlays[id].content);
+    if (newText !== null) {
+      setTextOverlays((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], content: newText },
+      }));
+    }
+  };
+
   useEffect(() => {
     let mousedownListener: google.maps.MapsEventListener | null = null;
     let mousemoveListener: google.maps.MapsEventListener | null = null;
@@ -189,6 +223,7 @@ const GoogleMaps: React.FC<Props> = ({
     const onClick = (e: google.maps.MapMouseEvent) => {
       switch (currentDrawingMode) {
         case "MARKER":
+          console.log("MARKERRRRRRRRRRRRRRRRRRRRR");
           const latLng = e.latLng;
           if (latLng !== null) {
             const id = Date.now().toString();
@@ -200,6 +235,17 @@ const GoogleMaps: React.FC<Props> = ({
               ...newMarker,
             });
           }
+          break;
+        case "TEXT":
+          const id = Date.now().toString();
+          setTextOverlays((prev) => ({
+            ...prev,
+            [id]: {
+              position: e.latLng?.toJSON(),
+              content: "Editable Text",
+            },
+          }));
+
           break;
         default:
           break;
@@ -287,8 +333,44 @@ const GoogleMaps: React.FC<Props> = ({
   }, [isDrawing, currentPath, googleMapInstance, markers]);
 
   console.log("MAPS", "########################++");
+  //
 
-  console.log(currentPath);
+  const [cursorPosition, setCursorPosition] = useState<{
+    lat: number;
+    lng: number;
+    state: string;
+  }>({ lat: 0, lng: 0, state: "move" });
+
+  const handleCursorMove = (e: google.maps.MapMouseEvent) => {
+    setCursorPosition({
+      lat: e.latLng?.toJSON().lat ?? 18,
+      lng: e.latLng?.toJSON().lng ?? 73,
+      state: "move",
+    });
+
+    space.cursors.set({
+      position: {
+        x: e.latLng?.toJSON().lat ?? 18,
+        y: e.latLng?.toJSON().lng ?? 73,
+      },
+      data: { state: "move" },
+    });
+  };
+
+  const handleCursorLeave = (e: google.maps.MapMouseEvent) => {
+    setCursorPosition({
+      lat: 18,
+      lng: 73,
+      state: "leave",
+    });
+
+    space.cursors.set({
+      position: { x: 18, y: 73 },
+      data: { state: "leave" },
+    });
+  };
+
+  const { self, otherMembers } = useSpaceMembers(space);
 
   return (
     <div className="h-full w-full">
@@ -301,6 +383,8 @@ const GoogleMaps: React.FC<Props> = ({
             mapContainerClassName="h-full w-full rounded border"
             center={center}
             zoom={10}
+            onMouseOut={(e) => handleCursorLeave(e)}
+            onMouseMove={(e) => handleCursorMove(e)}
           >
             {Object.entries(markers).map(([id, position]) => (
               <Marker
@@ -334,6 +418,21 @@ const GoogleMaps: React.FC<Props> = ({
                 }}
               />
             )}
+            {/* Cursors------------- */}
+            <YourCursor
+              self={self as Member | null}
+              space={space}
+              cursorPosition={cursorPosition}
+            />
+            <MemberCursors
+              otherUsers={
+                otherMembers.filter(
+                  (m: SpaceMember) => m.isConnected
+                ) as Member[]
+              }
+              space={space}
+              selfConnectionId={self?.connectionId}
+            />
           </GoogleMap>
           <MapActionBar
             currentDrawingMode={currentDrawingMode}

@@ -1,53 +1,63 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Space, CursorUpdate as _CursorUpdate } from "@ably/spaces";
-import useCursor from "../hooks/useCursor";
+import { Marker } from "@react-google-maps/api";
 import { Member } from "../utils/types";
-import CursorSvg from "./CursorSvg";
 
 // 💡 This component is used to render the cursor of the user
 const YourCursor = ({
   self,
   space,
-  parentRef,
+  cursorPosition,
 }: {
   self: Member | null;
   space?: Space;
-  parentRef: React.RefObject<HTMLDivElement>;
-}) => {
-  const [cursorPosition, setCursorPosition] = useState<{
-    left: number;
-    top: number;
+  cursorPosition: {
+    lat: number;
+    lng: number;
     state: string;
-  }>({ left: 0, top: 0, state: "move" });
-  const handleSelfCursorMove = useCursor(
-    setCursorPosition,
-    parentRef,
-    space,
-    self?.connectionId
-  );
+  };
+}) => {
   if (!self) {
     return null;
   }
   if (cursorPosition.state === "leave") return null;
   const { cursorColor, nameColor } = self.profileData.userColors;
 
+  const markerIcon = {
+    path: window.google.maps.SymbolPath.CIRCLE,
+    scale: 10,
+    fillColor: "#0000FF",
+    fillOpacity: 0.8,
+    strokeWeight: 0.6,
+  };
+
   return (
-    <div
-      className="absolute"
-      onMouseMove={(e) => handleSelfCursorMove(e)}
-      style={{
-        top: `${cursorPosition.top}px`,
-        left: `${cursorPosition.left}px`,
-      }}
-    >
-      <CursorSvg cursorColor={cursorColor} />
-      <div
-        className={`px-4 py-2 m-2 ${nameColor} rounded-full text-sm text-white whitespace-nowrap`}
+    <>
+      <Marker
+        icon={markerIcon}
+        clickable={false}
+        position={{
+          lat: cursorPosition.lat,
+          lng: cursorPosition.lng,
+        }}
+      />
+      {/* <div
+        className="absolute border-2 border-yellow-600"
+        onMouseMove={(e) => handleSelfCursorMove(e)}
+        style={{
+          top: `${cursorPosition.top}px`,
+          left: `${cursorPosition.left}px`,
+        }}
       >
-        You
-      </div>
-    </div>
+        <CursorSvg cursorColor={cursorColor} />
+        <div
+          className={`px-4 py-2 m-2 ${nameColor} rounded-full text-sm text-white whitespace-nowrap`}
+        >
+          You
+        </div>
+      </div> */}
+    </>
   );
 };
 
@@ -90,6 +100,14 @@ const MemberCursors = ({
     };
   }, [space]);
 
+  const markerIcon = {
+    path: window.google.maps.SymbolPath.CIRCLE,
+    scale: 10,
+    fillColor: "#F00",
+    fillOpacity: 0.8,
+    strokeWeight: 0.6,
+  };
+
   return (
     <>
       {otherUsers.map(({ connectionId, profileData }) => {
@@ -97,22 +115,33 @@ const MemberCursors = ({
         if (positions[connectionId].state === "leave") return;
         const { cursorColor, nameColor } = profileData.userColors;
         return (
-          <div
-            key={connectionId}
-            id={`member-cursor-${connectionId}`}
-            className="absolute"
-            style={{
-              left: `${positions[connectionId].position.x}px`,
-              top: `${positions[connectionId].position.y}px`,
-            }}
-          >
-            <CursorSvg cursorColor={cursorColor} />
-            <div
-              className={`px-4 py-2 m-2 ${nameColor} rounded-full text-sm text-white whitespace-nowrap member-cursor`}
+          <>
+            <Marker
+              key={connectionId}
+              icon={markerIcon}
+              clickable={false}
+              position={{
+                lat: positions[connectionId].position.x,
+                lng: positions[connectionId].position.y,
+              }}
+            />
+            {/* <div
+              key={connectionId}
+              id={`member-cursor-${connectionId}`}
+              className="absolute"
+              style={{
+                left: `${positions[connectionId].position.x}px`,
+                top: `${positions[connectionId].position.y}px`,
+              }}
             >
-              {profileData.name}
-            </div>
-          </div>
+              <CursorSvg cursorColor={cursorColor} />
+              <div
+                className={`px-4 py-2 m-2 ${nameColor} rounded-full text-sm text-white whitespace-nowrap member-cursor`}
+              >
+                {profileData.name}
+              </div>
+            </div> */}
+          </>
         );
       })}
     </>

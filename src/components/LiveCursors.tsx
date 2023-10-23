@@ -3,11 +3,8 @@ import useSpaceMembers from "../hooks/useMembers";
 import { DrawingMode } from "../types";
 import { colours } from "../utils/helpers";
 import { mockNames } from "../utils/mockNames";
-import { MemberCursors, YourCursor } from "./Cursors";
 import { SpacesContext } from "./SpacesContext";
 
-import type { SpaceMember } from "@ably/spaces";
-import type { Member } from "../utils/types";
 import GoogleMaps from "./GoogleMaps";
 
 const mockName = () => mockNames[Math.floor(Math.random() * mockNames.length)];
@@ -45,19 +42,21 @@ const LiveCursors = () => {
         <GoogleMaps
           currentDrawingMode={currentDrawingMode}
           setCurrentDrawingMode={setCurrentDrawingMode}
+          space={space}
+          selfConnectionId={self?.connectionId}
         />
-        <YourCursor
+        {/* <YourCursor
           self={self as Member | null}
           space={space}
           parentRef={liveCursors}
-        />
-        <MemberCursors
+        /> */}
+        {/* <MemberCursors
           otherUsers={
             otherMembers.filter((m: SpaceMember) => m.isConnected) as Member[]
           }
           space={space}
           selfConnectionId={self?.connectionId}
-        />
+        /> */}
       </div>
     </div>
   );

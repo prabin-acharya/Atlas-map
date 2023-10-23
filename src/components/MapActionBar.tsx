@@ -62,6 +62,12 @@ const MapActionBar: React.FC<Props> = ({
           <path d="M3,21c0.4,0,0.8-0.2,1-0.6L20.4,3.6c0.4-0.8,0.1-1.7-0.7-2.1c-0.8-0.4-1.7-0.1-2.1,0.7L1.6,19.1C1.2,19.9,1.5,21,2.3,21H3z" />
         </svg>
       </button>
+      <button
+        className={getButtonStyle(DrawingMode.TEXT)}
+        onClick={() => setCurrentDrawingMode(DrawingMode.TEXT)}
+      >
+        T
+      </button>
     </div>
   );
 };
