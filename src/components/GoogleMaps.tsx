@@ -198,6 +198,8 @@ const GoogleMaps: React.FC<Props> = ({
     {}
   );
 
+  const [isDragging, setIsDragging] = useState(false);
+
   useEffect(() => {
     let mousedownListener: google.maps.MapsEventListener | null = null;
     let mousemoveListener: google.maps.MapsEventListener | null = null;
@@ -246,6 +248,8 @@ const GoogleMaps: React.FC<Props> = ({
     };
 
     const onMouseDown = (e: google.maps.MapMouseEvent) => {
+      setIsDragging(true);
+
       switch (currentDrawingMode) {
         case "FREEHAND":
           setIsDrawing(true);
@@ -259,7 +263,38 @@ const GoogleMaps: React.FC<Props> = ({
       }
     };
 
+    // const updateItemPosition = (id, newPosition) => {
+    //   setMapItems((prevItems) =>
+    //     prevItems.map((item) =>
+    //       item.id === id ? { ...item, position: newPosition } : item
+    //     )
+    //   );
+    // };
+
     const onMouseMove = (e: google.maps.MapMouseEvent) => {
+      // if (!isDragging) return;
+
+      console.log("MMMMMMMMmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+
+      console.log(isDragging);
+
+      if (isDragging) {
+        const id = selectedTextId;
+
+        console.log("llllllllllllllllllllll");
+
+        if (googleMapInstance) {
+          console.log("VVVVVVVVVVVVVVVVVVVVVVVVVVVVVv");
+          googleMapInstance.setOptions({ draggable: false });
+        }
+
+        const newPosition = e.latLng?.toJSON();
+        setTexts((prevTexts) => ({
+          ...prevTexts,
+          [id]: { ...prevTexts[id], position: newPosition },
+        }));
+      }
+
       switch (currentDrawingMode) {
         case "FREEHAND":
           if (isDrawing && e.latLng) {
@@ -274,6 +309,13 @@ const GoogleMaps: React.FC<Props> = ({
     };
 
     const onMouseUp = () => {
+      setIsDragging(false);
+      setSelectedTextId(null);
+
+      // if (googleMapInstance) {
+      //   googleMapInstance.setOptions({ draggable: true });
+      // }
+
       switch (currentDrawingMode) {
         case "FREEHAND":
           if (isDrawing) {
@@ -282,9 +324,9 @@ const GoogleMaps: React.FC<Props> = ({
             setCurrentPath([]);
           }
           setIsDrawing(false);
-          if (googleMapInstance) {
-            googleMapInstance.setOptions({ draggable: true });
-          }
+          // if (googleMapInstance) {
+          //   googleMapInstance.setOptions({ draggable: true });
+          // }
           break;
         default:
           break;
@@ -323,7 +365,7 @@ const GoogleMaps: React.FC<Props> = ({
       clickListener?.remove();
       document.removeEventListener("mouseup", onMouseUpGlobal);
     };
-  }, [isDrawing, currentPath, googleMapInstance, markers]);
+  }, [isDrawing, currentPath, googleMapInstance, markers, isDragging]);
 
   // console.log("MAPS", "########################++");
   //
@@ -383,6 +425,26 @@ const GoogleMaps: React.FC<Props> = ({
       console.log("Current zoom level:", zoomLevel);
     }
   };
+
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+
+  console.log(
+    selectedTextId,
+    "$$$$$$$$$$$$$&&&&&&&&&&&&&&&&&&&&&&&&&&&&&7",
+    isDragging
+  );
+
+  useEffect(() => {
+    if (isDragging) {
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: false });
+      }
+    } else {
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: true });
+      }
+    }
+  }, [isDragging]);
 
   return (
     <div className="h-full w-full">
@@ -449,9 +511,11 @@ const GoogleMaps: React.FC<Props> = ({
             {Object.entries(texts).map(([id, textData]) => (
               <TextLabel
                 key={id}
+                id={id}
                 position={textData.position}
                 text={textData.text}
                 zoomLevel={currentZoomLevel}
+                setSelectedTextId={setSelectedTextId}
                 onTextChange={(newText) => {
                   setTexts({
                     ...texts,
@@ -496,10 +560,12 @@ type TextOverlay = {
 };
 
 type TextLabelProps = {
+  id: string;
   position: google.maps.LatLngLiteral;
   text: string;
   zoomLevel: number | null;
   onTextChange: (newText: string) => void;
+  setSelectedTextId: (id: string | null) => void; // new prop
 };
 
 type TextData = {
@@ -508,10 +574,12 @@ type TextData = {
 };
 
 const TextLabel: React.FC<TextLabelProps> = ({
+  id,
   position,
   text,
   zoomLevel,
   onTextChange,
+  setSelectedTextId,
 }) => {
   const handleTextClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     e.stopPropagation();
@@ -532,10 +600,71 @@ const TextLabel: React.FC<TextLabelProps> = ({
     return zoomLevel + "px";
   };
 
+  // ================---------------------------------------
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [startCoords, setStartCoords] = useState({ x: 0, y: 0 });
+
+  // const onOverlayLoad = (overlay: google.maps.OverlayView) => {
+  //   const div = overlay.getPanes()?.overlayMouseTarget as
+  //     | HTMLElement
+  //     | null
+  //     | undefined;
+
+  //   if (!div) return;
+
+  //   const handleMouseDown = (e: globalThis.MouseEvent): void => {
+  //     setStartCoords({ x: e.clientX, y: e.clientY });
+  //     setIsDragging(true);
+  //   };
+
+  //   const handleMouseUp = (e: globalThis.MouseEvent): void => {
+  //     setIsDragging(false);
+  //   };
+
+  //   const handleMouseMove = (e: globalThis.MouseEvent): void => {
+  //     if (!isDragging) return;
+
+  //     const deltaX = e.clientX - startCoords.x;
+  //     const deltaY = e.clientY - startCoords.y;
+  //   };
+
+  //   div.addEventListener("mousedown", handleMouseDown);
+  //   div.addEventListener("mouseup", handleMouseUp);
+  //   div.addEventListener("mousemove", handleMouseMove);
+
+  //   return () => {
+  //     div.removeEventListener("mousedown", handleMouseDown);
+  //     div.removeEventListener("mouseup", handleMouseUp);
+  //     div.removeEventListener("mousemove", handleMouseMove);
+  //   };
+  // };
+
+  const onOverlayLoad = (overlay: google.maps.OverlayView) => {
+    const div = overlay.getPanes()?.overlayMouseTarget as
+      | HTMLElement
+      | null
+      | undefined;
+
+    if (!div) return;
+
+    const handleMouseDown = (e: globalThis.MouseEvent): void => {
+      console.log("+++++$$$$_______-------");
+      setSelectedTextId(id);
+    };
+
+    div.addEventListener("mousedown", handleMouseDown);
+
+    return () => {
+      div.removeEventListener("mousedown", handleMouseDown);
+    };
+  };
+
   return (
     <OverlayView
       position={position}
       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+      onLoad={onOverlayLoad}
     >
       <input
         type="text"
@@ -569,7 +698,6 @@ const TextLabel: React.FC<TextLabelProps> = ({
 //   src,
 //   onPositionChange,
 // }) => {
-//   const [isDragging, setIsDragging] = useState(false);
 
 //   const handleMouseDown = (
 //     e: React.MouseEvent<HTMLImageElement, MouseEvent>
