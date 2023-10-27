@@ -194,10 +194,6 @@ const GoogleMaps: React.FC<Props> = ({
   const [googleMapInstance, setGoogleMapInstance] =
     useState<google.maps.Map | null>(null);
 
-  const [textOverlays, setTextOverlays] = useState<Record<string, TextOverlay>>(
-    {}
-  );
-
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
@@ -223,14 +219,6 @@ const GoogleMaps: React.FC<Props> = ({
           }
           break;
         case "TEXT":
-          // const id = Date.now().toString();
-          // setTextOverlays((prev) => ({
-          //   ...prev,
-          //   [id]: {
-          //     position: e.latLng?.toJSON(),
-          //     content: "Editable Text",
-          //   },
-          // }));
           if (e.latLng?.toJSON()) {
             const coords = e.latLng.toJSON();
             const id = `label_${Date.now()}`;
@@ -312,10 +300,6 @@ const GoogleMaps: React.FC<Props> = ({
       setIsDragging(false);
       setSelectedTextId(null);
 
-      // if (googleMapInstance) {
-      //   googleMapInstance.setOptions({ draggable: true });
-      // }
-
       switch (currentDrawingMode) {
         case "FREEHAND":
           if (isDrawing) {
@@ -324,9 +308,7 @@ const GoogleMaps: React.FC<Props> = ({
             setCurrentPath([]);
           }
           setIsDrawing(false);
-          // if (googleMapInstance) {
-          //   googleMapInstance.setOptions({ draggable: true });
-          // }
+
           break;
         default:
           break;
@@ -427,12 +409,6 @@ const GoogleMaps: React.FC<Props> = ({
   };
 
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
-
-  console.log(
-    selectedTextId,
-    "$$$$$$$$$$$$$&&&&&&&&&&&&&&&&&&&&&&&&&&&&&7",
-    isDragging
-  );
 
   useEffect(() => {
     if (isDragging) {
@@ -602,44 +578,6 @@ const TextLabel: React.FC<TextLabelProps> = ({
 
   // ================---------------------------------------
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [startCoords, setStartCoords] = useState({ x: 0, y: 0 });
-
-  // const onOverlayLoad = (overlay: google.maps.OverlayView) => {
-  //   const div = overlay.getPanes()?.overlayMouseTarget as
-  //     | HTMLElement
-  //     | null
-  //     | undefined;
-
-  //   if (!div) return;
-
-  //   const handleMouseDown = (e: globalThis.MouseEvent): void => {
-  //     setStartCoords({ x: e.clientX, y: e.clientY });
-  //     setIsDragging(true);
-  //   };
-
-  //   const handleMouseUp = (e: globalThis.MouseEvent): void => {
-  //     setIsDragging(false);
-  //   };
-
-  //   const handleMouseMove = (e: globalThis.MouseEvent): void => {
-  //     if (!isDragging) return;
-
-  //     const deltaX = e.clientX - startCoords.x;
-  //     const deltaY = e.clientY - startCoords.y;
-  //   };
-
-  //   div.addEventListener("mousedown", handleMouseDown);
-  //   div.addEventListener("mouseup", handleMouseUp);
-  //   div.addEventListener("mousemove", handleMouseMove);
-
-  //   return () => {
-  //     div.removeEventListener("mousedown", handleMouseDown);
-  //     div.removeEventListener("mouseup", handleMouseUp);
-  //     div.removeEventListener("mousemove", handleMouseMove);
-  //   };
-  // };
-
   const onOverlayLoad = (overlay: google.maps.OverlayView) => {
     const div = overlay.getPanes()?.overlayMouseTarget as
       | HTMLElement
@@ -649,7 +587,6 @@ const TextLabel: React.FC<TextLabelProps> = ({
     if (!div) return;
 
     const handleMouseDown = (e: globalThis.MouseEvent): void => {
-      console.log("+++++$$$$_______-------");
       setSelectedTextId(id);
     };
 
