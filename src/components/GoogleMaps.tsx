@@ -10,14 +10,7 @@ import {
   useLoadScript,
 } from "@react-google-maps/api";
 import { useAbly } from "ably/react";
-import {
-  Dispatch,
-  SetStateAction,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import useSpaceMembers from "../hooks/useMembers";
 
 import { OverlayView, useGoogleMap } from "@react-google-maps/api";
@@ -260,27 +253,20 @@ const GoogleMaps: React.FC<Props> = ({
     // };
 
     const onMouseMove = (e: google.maps.MapMouseEvent) => {
-      // if (!isDragging) return;
-
-      console.log("MMMMMMMMmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
-
-      console.log(isDragging);
-
       if (isDragging) {
         const id = selectedTextId;
 
-        console.log("llllllllllllllllllllll");
-
         if (googleMapInstance) {
-          console.log("VVVVVVVVVVVVVVVVVVVVVVVVVVVVVv");
           googleMapInstance.setOptions({ draggable: false });
         }
 
         const newPosition = e.latLng?.toJSON();
-        setTexts((prevTexts) => ({
-          ...prevTexts,
-          [id]: { ...prevTexts[id], position: newPosition },
-        }));
+        if (id && newPosition) {
+          setTexts((prevTexts) => ({
+            ...prevTexts,
+            [id]: { ...prevTexts[id], position: newPosition },
+          }));
+        }
       }
 
       switch (currentDrawingMode) {
