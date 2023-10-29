@@ -100,7 +100,6 @@ const Map: React.FC<Props> = ({
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const [isDrawingFreehand, setIsDrawingFreehand] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
 
   const [markers, setMarkers] = useState<
     Record<string, google.maps.LatLngLiteral>
@@ -111,9 +110,9 @@ const Map: React.FC<Props> = ({
   const [freehandPaths, setFreehandPaths] = useState<
     Record<string, google.maps.LatLngLiteral[]>
   >({});
-  const [currentPath, setCurrentPath] = useState<google.maps.LatLngLiteral[]>(
-    []
-  );
+  const [currentFreehandPath, setCurrentFreehandPath] = useState<
+    google.maps.LatLngLiteral[]
+  >([]);
 
   const [polylines, setPolylines] = useState<{
     [key: string]: google.maps.LatLngLiteral[];
@@ -174,50 +173,76 @@ const Map: React.FC<Props> = ({
             });
             setCurrentDrawingMode(null);
           }
-
           break;
+        case "POLYLINE":
+          if (!isDrawingFreehand) setIsDrawingFreehand(true);
+          const newPoint = e.latLng!.toJSON();
+          const lastPoint = currentFreehandPath[currentFreehandPath.length - 1];
+
+          if (e.latLng)
+            setCurrentFreehandPath((prev) => [...prev, e.latLng!.toJSON()]);
+
+          // Check if close to the last point
+          if (currentFreehandPath.length > 1) {
+            const lastLat = newPoint.lat;
+            const lastLng = newPoint.lng;
+
+            const prevLat = lastPoint.lat;
+            const prevLng = lastPoint.lng;
+
+            const latDiff = Math.abs(lastLat - prevLat);
+            const lngDiff = Math.abs(lastLng - prevLng);
+
+            if (latDiff < 0.001 && lngDiff < 0.0001) {
+              setIsDrawingFreehand(false);
+              setCurrentDrawingMode(null);
+              setCurrentFreehandPath([]);
+              const id = "polyline_" + Date.now().toString();
+              setPolylines((prev) => ({ ...prev, [id]: currentFreehandPath }));
+            }
+          }
+          break;
+
         default:
           break;
       }
     };
 
     const onMouseDown = (e: google.maps.MapMouseEvent) => {
-      setIsDragging(true);
-
       switch (currentDrawingMode) {
         case "FREEHAND":
           setIsDrawingFreehand(true);
-          if (e.latLng) setCurrentPath([e.latLng.toJSON()]);
+          if (e.latLng) setCurrentFreehandPath([e.latLng.toJSON()]);
           if (googleMapInstance) {
             googleMapInstance.setOptions({ draggable: false });
           }
           break;
+
         default:
           break;
       }
     };
 
     const onMouseMove = (e: google.maps.MapMouseEvent) => {
-      // if (isDragging) {
-      if (selectedItemId) {
-        const newPosition = e.latLng?.toJSON();
-        if (selectedItemId && newPosition) {
-          setTexts((prevTexts) => ({
-            ...prevTexts,
-            [selectedItemId]: {
-              ...prevTexts[selectedItemId],
-              position: newPosition,
-            },
-          }));
-        }
-      }
-
       switch (currentDrawingMode) {
         case "FREEHAND":
           if (isDrawingFreehand && e.latLng) {
-            setCurrentPath((prev) => [...prev, e.latLng!.toJSON()]);
+            setCurrentFreehandPath((prev) => [...prev, e.latLng!.toJSON()]);
           }
-
+          break;
+        case "TEXT":
+          if (selectedItemId) {
+            const newPosition = e.latLng?.toJSON();
+            if (selectedItemId && newPosition) {
+              setTexts((prevTexts) => ({
+                ...prevTexts,
+                [selectedItemId]: {
+                  ...prevTexts[selectedItemId],
+                  position: newPosition,
+                },
+              }));
+            }
+          }
           break;
         default:
           break;
@@ -230,14 +255,13 @@ const Map: React.FC<Props> = ({
 
     const onMouseUpGlobal = () => {
       setIsDrawingFreehand(false);
-      setIsDragging(false);
       setSelectedItemId(null);
 
       switch (currentDrawingMode) {
         case "FREEHAND":
           const id = "freehand_" + Date.now().toString();
-          setFreehandPaths((prev) => ({ ...prev, [id]: currentPath }));
-          setCurrentPath([]);
+          setFreehandPaths((prev) => ({ ...prev, [id]: currentFreehandPath }));
+          setCurrentFreehandPath([]);
 
           if (googleMapInstance) {
             googleMapInstance.setOptions({ draggable: true });
@@ -273,7 +297,7 @@ const Map: React.FC<Props> = ({
     };
   }, [
     isDrawingFreehand,
-    currentPath,
+    currentFreehandPath,
     googleMapInstance,
     markers,
     selectedItemId,
@@ -330,8 +354,6 @@ const Map: React.FC<Props> = ({
     }
   };
 
-  console.log(isDragging, selectedItemId);
-
   return (
     <div className="h-full w-full">
       {!isLoaded ? (
@@ -356,6 +378,7 @@ const Map: React.FC<Props> = ({
                 onDragEnd={(e) => handleDragEnd(e, id)}
               />
             ))}
+            {/* FREEHAND MARKER------------------------------------ */}
             {Object.entries(freehandPaths).map(([id, path]) => (
               <Polyline
                 key={id}
@@ -371,7 +394,32 @@ const Map: React.FC<Props> = ({
 
             {isDrawingFreehand && (
               <Polyline
-                path={currentPath}
+                path={currentFreehandPath}
+                options={{
+                  strokeWeight: 7,
+                  strokeColor: "#00FF00",
+                  strokeOpacity: 0.8,
+                }}
+              />
+            )}
+
+            {/* POLYLINE--------------------------- */}
+            {Object.entries(polylines).map(([id, path]) => (
+              <Polyline
+                key={id}
+                path={path}
+                options={{
+                  strokeWeight: 7,
+                  strokeColor: "#FF0000",
+                  strokeOpacity: 0.8,
+                }}
+                draggable={true}
+              />
+            ))}
+
+            {isDrawingFreehand && (
+              <Polyline
+                path={[...currentFreehandPath, cursorPosition]}
                 options={{
                   strokeWeight: 7,
                   strokeColor: "#00FF00",
