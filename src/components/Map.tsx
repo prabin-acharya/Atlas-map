@@ -99,7 +99,7 @@ const Map: React.FC<Props> = ({
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [isDrawingFreehand, setIsDrawingFreehand] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const [markers, setMarkers] = useState<
@@ -186,7 +186,7 @@ const Map: React.FC<Props> = ({
 
       switch (currentDrawingMode) {
         case "FREEHAND":
-          setIsDrawing(true);
+          setIsDrawingFreehand(true);
           if (e.latLng) setCurrentPath([e.latLng.toJSON()]);
           if (googleMapInstance) {
             googleMapInstance.setOptions({ draggable: false });
@@ -198,11 +198,8 @@ const Map: React.FC<Props> = ({
     };
 
     const onMouseMove = (e: google.maps.MapMouseEvent) => {
-      if (isDragging) {
-        if (googleMapInstance) {
-          googleMapInstance.setOptions({ draggable: false });
-        }
-
+      // if (isDragging) {
+      if (selectedItemId) {
         const newPosition = e.latLng?.toJSON();
         if (selectedItemId && newPosition) {
           setTexts((prevTexts) => ({
@@ -217,7 +214,7 @@ const Map: React.FC<Props> = ({
 
       switch (currentDrawingMode) {
         case "FREEHAND":
-          if (isDrawing && e.latLng) {
+          if (isDrawingFreehand && e.latLng) {
             setCurrentPath((prev) => [...prev, e.latLng!.toJSON()]);
           }
 
@@ -228,40 +225,30 @@ const Map: React.FC<Props> = ({
     };
 
     const onMouseUp = () => {
+      //
+    };
+
+    const onMouseUpGlobal = () => {
+      setIsDrawingFreehand(false);
       setIsDragging(false);
       setSelectedItemId(null);
 
       switch (currentDrawingMode) {
         case "FREEHAND":
-          if (isDrawing) {
-            const id = "freehand_" + Date.now().toString();
-            setFreehandPaths((prev) => ({ ...prev, [id]: currentPath }));
-            setCurrentPath([]);
-          }
+          const id = "freehand_" + Date.now().toString();
+          setFreehandPaths((prev) => ({ ...prev, [id]: currentPath }));
+          setCurrentPath([]);
 
           if (googleMapInstance) {
             googleMapInstance.setOptions({ draggable: true });
           }
-
-          // setIsDrawing(false);
           break;
         default:
           break;
       }
     };
 
-    const onMouseUpGlobal = () => {
-      setIsDrawing(false);
-      if (googleMapInstance) {
-        googleMapInstance.setOptions({ draggable: true });
-      }
-
-      const id = "freehand_" + Date.now().toString();
-      setFreehandPaths((prev) => ({ ...prev, [id]: currentPath }));
-      setCurrentPath([]);
-    };
-
-    // --------
+    // ----------------------
     document.addEventListener("mouseup", onMouseUpGlobal);
 
     if (googleMapInstance) {
@@ -284,19 +271,14 @@ const Map: React.FC<Props> = ({
       clickListener?.remove();
       document.removeEventListener("mouseup", onMouseUpGlobal);
     };
-  }, [isDrawing, currentPath, googleMapInstance, markers, isDragging]);
-
-  useEffect(() => {
-    if (isDragging) {
-      if (googleMapInstance) {
-        googleMapInstance.setOptions({ draggable: false });
-      }
-    } else {
-      if (googleMapInstance) {
-        googleMapInstance.setOptions({ draggable: true });
-      }
-    }
-  }, [isDragging]);
+  }, [
+    isDrawingFreehand,
+    currentPath,
+    googleMapInstance,
+    markers,
+    selectedItemId,
+    currentDrawingMode,
+  ]);
 
   const handleCursorMove = (e: google.maps.MapMouseEvent) => {
     setCursorPosition({
@@ -327,6 +309,19 @@ const Map: React.FC<Props> = ({
     });
   };
 
+  useEffect(() => {
+    if (selectedItemId) {
+      if (googleMapInstance) {
+        console.log("&&****___+++");
+        googleMapInstance.setOptions({ draggable: false });
+      }
+    } else {
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: true });
+      }
+    }
+  }, [selectedItemId]);
+
   const handleZoomChanged = () => {
     if (googleMapInstance !== null) {
       const zoomLevel = googleMapInstance.getZoom();
@@ -334,6 +329,8 @@ const Map: React.FC<Props> = ({
       console.log("Current zoom level:", zoomLevel);
     }
   };
+
+  console.log(isDragging, selectedItemId);
 
   return (
     <div className="h-full w-full">
@@ -372,7 +369,7 @@ const Map: React.FC<Props> = ({
               />
             ))}
 
-            {isDrawing && (
+            {isDrawingFreehand && (
               <Polyline
                 path={currentPath}
                 options={{

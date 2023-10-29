@@ -63,6 +63,12 @@ const MapActionBar: React.FC<Props> = ({
         </svg>
       </button>
       <button
+        className={getButtonStyle(DrawingMode.POLYLINE)}
+        onClick={() => setCurrentDrawingMode(DrawingMode.POLYLINE)}
+      >
+        PL
+      </button>
+      <button
         className={getButtonStyle(DrawingMode.TEXT)}
         onClick={() => setCurrentDrawingMode(DrawingMode.TEXT)}
       >
