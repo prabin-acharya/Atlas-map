@@ -33,7 +33,9 @@ const LiveCursors = () => {
 
   return (
     <div className="flex flex-col border-2 border-red-600 h-screen">
-      <div className="w-full h-14 bg-slate-600"></div>
+      <div className="w-full h-14 bg-slate-600  flex items-center">
+        <h2 className="text-white text-2xl font-extrabold p-4">Atlas</h2>
+      </div>
       <div
         id="live-cursors"
         ref={liveCursors}

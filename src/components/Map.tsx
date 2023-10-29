@@ -5,6 +5,7 @@ import type {
 } from "@ably/spaces";
 import {
   GoogleMap,
+  GroundOverlay,
   Marker,
   Polygon,
   Polyline,
@@ -23,6 +24,11 @@ import MapActionBar from "./MapActionBar";
 
 type Library = "places" | "geometry" | "visualization" | "drawing";
 const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
+
+type ImageOverlay = {
+  url: string;
+  bounds: google.maps.LatLngBoundsLiteral;
+};
 
 interface Props {
   currentDrawingMode: DrawingMode | null;
@@ -392,140 +398,283 @@ const Map: React.FC<Props> = ({
     }
   };
 
+  //
+  //
+  //
+  const [imageOverlays, setImageOverlays] = useState<ImageOverlay[]>([]);
+
+  const calculateBounds = (
+    latLng: google.maps.LatLng
+  ): google.maps.LatLngBoundsLiteral => {
+    const delta = 0.01; // This value can be adjusted based on how large you want the image overlay to be
+    return {
+      north: latLng.lat() + delta,
+      south: latLng.lat() - delta,
+      east: latLng.lng() + delta,
+      west: latLng.lng() - delta,
+    };
+  };
+
+  useEffect(() => {
+    window.addEventListener("dragenter", handleDragEnter);
+    // Cleanup
+    return () => {
+      window.removeEventListener("dragenter", handleDragEnter);
+    };
+  }, []);
+
+  const handleDragEnter = () => {
+    // Set pointer-events to 'auto' for .overlay-div
+  };
+
+  const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    console.log("HANDLE IMAGE DROP");
+    e.preventDefault();
+
+    // Extract files
+    const files = e.dataTransfer.files;
+
+    console.log(files, "----");
+
+    if (files.length > 0) {
+      const file = files[0];
+      const reader = new FileReader();
+
+      reader.readAsDataURL(file);
+      reader.onloadend = function () {
+        // Create blob URL
+        const imageBlobUrl = URL.createObjectURL(file);
+
+        // Retrieve map properties
+        if (googleMapInstance) {
+          const bounds = googleMapInstance.getBounds();
+
+          if (bounds) {
+            const ne = bounds.getNorthEast();
+            const sw = bounds.getSouthWest();
+            const zoom = googleMapInstance.getZoom();
+
+            if (zoom !== null) {
+              const latLng = new google.maps.LatLng(
+                sw.lat() +
+                  (ne.lat() - sw.lat()) *
+                    (e.nativeEvent.offsetY /
+                      googleMapInstance.getDiv().offsetHeight),
+                sw.lng() +
+                  (ne.lng() - sw.lng()) *
+                    (e.nativeEvent.offsetX /
+                      googleMapInstance.getDiv().offsetWidth)
+              );
+
+              // Calculate bounds for image overlay
+              const calculatedBounds = calculateBounds(latLng);
+
+              // Update state
+              setImageOverlays([
+                ...imageOverlays,
+                { url: imageBlobUrl, bounds: calculatedBounds },
+              ]);
+            }
+          }
+        }
+      };
+    }
+    setShowOverlay(false);
+  };
+
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [captureDrop, setCaptureDrop] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalDragOver = (e) => {
+      console.log("DRAG OVER");
+      e.preventDefault();
+      setShowOverlay(true);
+      setCaptureDrop(true); // Enable drop capture
+    };
+
+    const handleGlobalDrop = (e) => {
+      console.log("GLOBAL DROP");
+
+      e.preventDefault(); // Add this line to prevent the default behavior
+      e.stopPropagation();
+      setShowOverlay(false);
+      setCaptureDrop(false); // Disable drop capture after drop is complete
+    };
+
+    window.addEventListener("dragover", handleGlobalDragOver);
+    window.addEventListener("drop", handleGlobalDrop);
+
+    return () => {
+      window.removeEventListener("dragover", handleGlobalDragOver);
+      window.removeEventListener("drop", handleGlobalDrop);
+    };
+  }, []);
+
+  console.log(imageOverlays, "############33");
+
   return (
     <div className="h-full w-full">
       {!isLoaded ? (
         <h1>Loading...</h1>
       ) : (
         <>
-          <GoogleMap
-            onLoad={(map) => setGoogleMapInstance(map)}
-            mapContainerClassName="h-full w-full rounded border"
-            center={center}
-            zoom={10}
-            onZoomChanged={handleZoomChanged}
-            onMouseOut={(e) => handleCursorLeave(e)}
-            onMouseMove={(e) => handleCursorMove(e)}
-          >
-            {Object.entries(markers).map(([id, position]) => (
-              <Marker
-                key={id}
-                position={position}
-                draggable={true}
-                onDrag={(e) => handleDrag(e, id)}
-                onDragEnd={(e) => handleDragEnd(e, id)}
-              />
-            ))}
-            {/* FREEHAND MARKER------------------------------------ */}
-            {Object.entries(freehandPaths).map(([id, path]) => (
-              <Polyline
-                key={id}
-                path={path}
-                options={{
-                  strokeWeight: 7,
-                  strokeColor: "#FF0000",
-                  strokeOpacity: 0.8,
-                }}
-                draggable={true}
-              />
-            ))}
+          <div className="h-full w-full relative">
+            <GoogleMap
+              onLoad={(map) => setGoogleMapInstance(map)}
+              mapContainerClassName="h-full w-full rounded border"
+              center={center}
+              zoom={10}
+              onZoomChanged={handleZoomChanged}
+              onMouseOut={(e) => handleCursorLeave(e)}
+              onMouseMove={(e) => handleCursorMove(e)}
+            >
+              {Object.entries(markers).map(([id, position]) => (
+                <Marker
+                  key={id}
+                  position={position}
+                  draggable={true}
+                  onDrag={(e) => handleDrag(e, id)}
+                  onDragEnd={(e) => handleDragEnd(e, id)}
+                />
+              ))}
+              {/* FREEHAND MARKER------------------------------------ */}
+              {Object.entries(freehandPaths).map(([id, path]) => (
+                <Polyline
+                  key={id}
+                  path={path}
+                  options={{
+                    strokeWeight: 7,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 0.8,
+                  }}
+                  draggable={true}
+                />
+              ))}
+              {isDrawingFreehand && (
+                <Polyline
+                  path={currentFreehandPath}
+                  options={{
+                    strokeWeight: 7,
+                    strokeColor: "#00FF00",
+                    strokeOpacity: 0.8,
+                  }}
+                />
+              )}
+              {/* POLYLINE--------------------------- */}
+              {Object.entries(polylines).map(([id, path]) => (
+                <Polyline
+                  key={id}
+                  path={path}
+                  options={{
+                    strokeWeight: 7,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 0.8,
+                  }}
+                  draggable={true}
+                />
+              ))}
+              {isDrawingFreehand && (
+                <Polyline
+                  path={[...currentFreehandPath, cursorPosition]}
+                  options={{
+                    strokeWeight: 7,
+                    strokeColor: "#00FF00",
+                    strokeOpacity: 0.8,
+                  }}
+                />
+              )}
 
-            {isDrawingFreehand && (
-              <Polyline
-                path={currentFreehandPath}
-                options={{
-                  strokeWeight: 7,
-                  strokeColor: "#00FF00",
-                  strokeOpacity: 0.8,
+              {/* POLYGON--------------------------- */}
+              {Object.entries(polygons).map(([id, path]) => (
+                <Polygon
+                  key={id}
+                  path={path}
+                  options={{
+                    strokeWeight: 7,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 0.8,
+                  }}
+                  draggable={true}
+                />
+              ))}
+              {isDrawingFreehand && currentDrawingMode == "POLYGON" && (
+                <Polygon
+                  path={[...currentFreehandPath, cursorPosition]}
+                  options={{
+                    strokeWeight: 7,
+                    strokeColor: "#00FF00",
+                    strokeOpacity: 0.8,
+                  }}
+                />
+              )}
+              {/* Cursors-------------------------------------------*/}
+              <YourCursor
+                self={self as Member | null}
+                space={space}
+                cursorPosition={cursorPosition}
+              />
+              <MemberCursors
+                otherUsers={
+                  otherMembers.filter(
+                    (m: SpaceMember) => m.isConnected
+                  ) as Member[]
+                }
+                space={space}
+                selfConnectionId={self?.connectionId}
+              />
+              {Object.entries(texts).map(([id, textData]) => (
+                <TextLabel
+                  key={id}
+                  id={id}
+                  position={textData.position}
+                  text={textData.text}
+                  zoomLevel={currentZoomLevel}
+                  setSelectedItemId={setSelectedItemId}
+                  onTextChange={(newText) => {
+                    setTexts({
+                      ...texts,
+                      [id]: { ...textData, text: newText },
+                    });
+                  }}
+                />
+              ))}
+              {/* IMAGE---------------------------------------- */}
+              <GroundOverlay
+                url="https://avatars.githubusercontent.com/u/71175492?v=4"
+                bounds={{
+                  north: 37.8049,
+                  south: 37.7749,
+                  east: -122.3894,
+                  west: -122.4194,
                 }}
               />
+
+              {imageOverlays.map((overlay, index) => (
+                <GroundOverlay
+                  key={index}
+                  url={overlay.url}
+                  bounds={overlay.bounds}
+                />
+              ))}
+            </GoogleMap>
+            {showOverlay && (
+              <div
+                className="absolute inset-0 w-full h-full  z-10  bg-orange-600 opacity-10"
+                style={{ pointerEvents: captureDrop ? "auto" : "none" }}
+                onDrop={(e) => {
+                  console.log("**********onDrop");
+                  e.stopPropagation(); // Stop the event from bubbling up to the window
+                  handleImageDrop(e);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+              ></div>
             )}
-
-            {/* POLYLINE--------------------------- */}
-            {Object.entries(polylines).map(([id, path]) => (
-              <Polyline
-                key={id}
-                path={path}
-                options={{
-                  strokeWeight: 7,
-                  strokeColor: "#FF0000",
-                  strokeOpacity: 0.8,
-                }}
-                draggable={true}
-              />
-            ))}
-
-            {isDrawingFreehand && (
-              <Polyline
-                path={[...currentFreehandPath, cursorPosition]}
-                options={{
-                  strokeWeight: 7,
-                  strokeColor: "#00FF00",
-                  strokeOpacity: 0.8,
-                }}
-              />
-            )}
-
-            {/* POLYGON--------------------------- */}
-            {Object.entries(polygons).map(([id, path]) => (
-              <Polygon
-                key={id}
-                path={path}
-                options={{
-                  strokeWeight: 7,
-                  strokeColor: "#FF0000",
-                  strokeOpacity: 0.8,
-                }}
-                draggable={true}
-              />
-            ))}
-
-            {isDrawingFreehand && currentDrawingMode == "POLYGON" && (
-              <Polygon
-                path={[...currentFreehandPath, cursorPosition]}
-                options={{
-                  strokeWeight: 7,
-                  strokeColor: "#00FF00",
-                  strokeOpacity: 0.8,
-                }}
-              />
-            )}
-            {/* Cursors-------------------------------------------*/}
-            <YourCursor
-              self={self as Member | null}
-              space={space}
-              cursorPosition={cursorPosition}
-            />
-            <MemberCursors
-              otherUsers={
-                otherMembers.filter(
-                  (m: SpaceMember) => m.isConnected
-                ) as Member[]
-              }
-              space={space}
-              selfConnectionId={self?.connectionId}
-            />
-            {Object.entries(texts).map(([id, textData]) => (
-              <TextLabel
-                key={id}
-                id={id}
-                position={textData.position}
-                text={textData.text}
-                zoomLevel={currentZoomLevel}
-                setSelectedItemId={setSelectedItemId}
-                onTextChange={(newText) => {
-                  setTexts({
-                    ...texts,
-                    [id]: { ...textData, text: newText },
-                  });
-                }}
-              />
-            ))}
-          </GoogleMap>
-          <MapActionBar
-            currentDrawingMode={currentDrawingMode}
-            setCurrentDrawingMode={setCurrentDrawingMode}
-          />
+            {/* <MapActionBar
+              currentDrawingMode={currentDrawingMode}
+              setCurrentDrawingMode={setCurrentDrawingMode}
+            /> */}
+          </div>
         </>
       )}
     </div>
