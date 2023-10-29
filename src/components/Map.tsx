@@ -6,6 +6,7 @@ import type {
 import {
   GoogleMap,
   Marker,
+  Polygon,
   Polyline,
   useLoadScript,
 } from "@react-google-maps/api";
@@ -118,6 +119,10 @@ const Map: React.FC<Props> = ({
     [key: string]: google.maps.LatLngLiteral[];
   }>({});
 
+  const [polygons, setPolygons] = useState<{
+    [key: string]: google.maps.LatLngLiteral[];
+  }>({});
+
   const onPolylineComplete = (polyline: google.maps.Polyline) => {
     const pathArray = polyline.getPath().getArray();
     const polylinePoints: google.maps.LatLngLiteral[] = pathArray.map((point) =>
@@ -149,6 +154,10 @@ const Map: React.FC<Props> = ({
     let clickListener: google.maps.MapsEventListener | null = null;
 
     const onClick = (e: google.maps.MapMouseEvent) => {
+      const newPoint = e.latLng!.toJSON();
+      const lastPoint = currentFreehandPath[currentFreehandPath.length - 1];
+      const firstPoint = currentFreehandPath[0];
+
       switch (currentDrawingMode) {
         case "MARKER":
           const latLng = e.latLng;
@@ -176,8 +185,6 @@ const Map: React.FC<Props> = ({
           break;
         case "POLYLINE":
           if (!isDrawingFreehand) setIsDrawingFreehand(true);
-          const newPoint = e.latLng!.toJSON();
-          const lastPoint = currentFreehandPath[currentFreehandPath.length - 1];
 
           if (e.latLng)
             setCurrentFreehandPath((prev) => [...prev, e.latLng!.toJSON()]);
@@ -201,6 +208,37 @@ const Map: React.FC<Props> = ({
               setPolylines((prev) => ({ ...prev, [id]: currentFreehandPath }));
             }
           }
+          break;
+
+        case "POLYGON":
+          if (!isDrawingFreehand) setIsDrawingFreehand(true);
+
+          if (e.latLng)
+            setCurrentFreehandPath((prev) => [...prev, e.latLng!.toJSON()]);
+
+          // check if close to first point
+          if (currentFreehandPath.length > 1) {
+            const lastLat = newPoint.lat;
+            const lastLng = newPoint.lng;
+
+            const firstLat = firstPoint.lat;
+            const firstLng = firstPoint.lng;
+
+            const latDiff = Math.abs(lastLat - firstLat);
+            const lngDiff = Math.abs(lastLng - firstLng);
+
+            if (latDiff < 0.001 && lngDiff < 0.0001) {
+              setIsDrawingFreehand(false);
+              setCurrentDrawingMode(null);
+              setCurrentFreehandPath([]);
+              const id = "polygon_" + Date.now().toString();
+              setPolygons((prev) => ({
+                ...prev,
+                [id]: currentFreehandPath,
+              }));
+            }
+          }
+
           break;
 
         default:
@@ -419,6 +457,31 @@ const Map: React.FC<Props> = ({
 
             {isDrawingFreehand && (
               <Polyline
+                path={[...currentFreehandPath, cursorPosition]}
+                options={{
+                  strokeWeight: 7,
+                  strokeColor: "#00FF00",
+                  strokeOpacity: 0.8,
+                }}
+              />
+            )}
+
+            {/* POLYGON--------------------------- */}
+            {Object.entries(polygons).map(([id, path]) => (
+              <Polygon
+                key={id}
+                path={path}
+                options={{
+                  strokeWeight: 7,
+                  strokeColor: "#FF0000",
+                  strokeOpacity: 0.8,
+                }}
+                draggable={true}
+              />
+            ))}
+
+            {isDrawingFreehand && currentDrawingMode == "POLYGON" && (
+              <Polygon
                 path={[...currentFreehandPath, cursorPosition]}
                 options={{
                   strokeWeight: 7,

@@ -68,6 +68,13 @@ const MapActionBar: React.FC<Props> = ({
       >
         PL
       </button>
+
+      <button
+        className={getButtonStyle(DrawingMode.POLYGON)}
+        onClick={() => setCurrentDrawingMode(DrawingMode.POLYGON)}
+      >
+        PG
+      </button>
       <button
         className={getButtonStyle(DrawingMode.TEXT)}
         onClick={() => setCurrentDrawingMode(DrawingMode.TEXT)}
