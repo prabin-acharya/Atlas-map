@@ -11,6 +11,7 @@ import {
 } from "@react-google-maps/api";
 import { useAbly } from "ably/react";
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
+import useAblySubscription from "../hooks/useAblySubscription";
 import useSpaceMembers from "../hooks/useMembers";
 
 import { OverlayView } from "@react-google-maps/api";
@@ -29,7 +30,7 @@ interface Props {
   selfConnectionId?: string;
 }
 
-const GoogleMaps: React.FC<Props> = ({
+const Map: React.FC<Props> = ({
   currentDrawingMode,
   setCurrentDrawingMode,
   space,
@@ -40,75 +41,14 @@ const GoogleMaps: React.FC<Props> = ({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries: libraries,
   });
+  const [googleMapInstance, setGoogleMapInstance] =
+    useState<google.maps.Map | null>(null);
+  const center = useMemo(() => ({ lat: 18.52043, lng: 73.856743 }), []);
 
   const client = useAbly();
   const mapChannel = client.channels.get("map-updates");
 
-  const center = useMemo(() => ({ lat: 18.52043, lng: 73.856743 }), []);
-
-  const [markers, setMarkers] = useState<
-    Record<string, google.maps.LatLngLiteral>
-  >({});
-
-  useEffect(() => {
-    const newMarkerSubscription = mapChannel.subscribe(
-      "new-marker",
-      (message: { data: { id: string; lat: number; lng: number } }) => {
-        const { id, ...newMarker } = message.data;
-        setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: newMarker }));
-      }
-    );
-
-    const updateMarkerSubscription = mapChannel.subscribe(
-      "update-marker",
-      (message: { data: { id: string; lat: number; lng: number } }) => {
-        const { id, ...updatedMarker } = message.data;
-        setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: updatedMarker }));
-      }
-    );
-
-    const dragMarkerSubscription = mapChannel.subscribe(
-      "drag-marker",
-      (message: { data: { id: string; lat: number; lng: number } }) => {
-        const { id, ...draggedMarker } = message.data;
-        setMarkers((prevMarkers) => ({
-          ...prevMarkers,
-          [id]: draggedMarker,
-        }));
-      }
-    );
-
-    const newPolylineSubscription = mapChannel.subscribe(
-      "new-polyline",
-      (message: {
-        data: { id: string; polylinePoints: google.maps.LatLngLiteral[] };
-      }) => {
-        const { id, polylinePoints } = message.data;
-        setPolylines((prevPolylines) => ({
-          ...prevPolylines,
-          [id]: polylinePoints,
-        }));
-      }
-    );
-
-    return () => {
-      newMarkerSubscription.unsubscribe();
-      updateMarkerSubscription.unsubscribe();
-      dragMarkerSubscription.unsubscribe();
-      newPolylineSubscription.unsubscribe();
-    };
-  }, []);
-
-  const onMarkerComplete = (marker: google.maps.Marker) => {
-    const newMarker = marker.getPosition()?.toJSON();
-    console.log("marker added!");
-    if (newMarker) {
-      const id = "marker_" + Date.now().toString();
-      setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: newMarker }));
-      mapChannel.publish("new-marker", { id, ...newMarker });
-    }
-    marker.setMap(null);
-  };
+  const { self, otherMembers } = useSpaceMembers(space);
 
   const handleDragEnd = (
     e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
@@ -150,6 +90,31 @@ const GoogleMaps: React.FC<Props> = ({
   //
   //
 
+  const [currentZoomLevel, setCurrentZoomLevel] = useState<number | null>(null);
+  const [cursorPosition, setCursorPosition] = useState<{
+    lat: number;
+    lng: number;
+    state: string;
+  }>({ lat: 0, lng: 0, state: "move" });
+
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const [markers, setMarkers] = useState<
+    Record<string, google.maps.LatLngLiteral>
+  >({});
+
+  const [texts, setTexts] = useState<Record<string, TextData>>({});
+
+  const [freehandPaths, setFreehandPaths] = useState<
+    Record<string, google.maps.LatLngLiteral[]>
+  >({});
+  const [currentPath, setCurrentPath] = useState<google.maps.LatLngLiteral[]>(
+    []
+  );
+
   const [polylines, setPolylines] = useState<{
     [key: string]: google.maps.LatLngLiteral[];
   }>({});
@@ -176,18 +141,7 @@ const GoogleMaps: React.FC<Props> = ({
   //
   //
 
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentPath, setCurrentPath] = useState<google.maps.LatLngLiteral[]>(
-    []
-  );
-  const [freehandPaths, setFreehandPaths] = useState<
-    Record<string, google.maps.LatLngLiteral[]>
-  >({});
-
-  const [googleMapInstance, setGoogleMapInstance] =
-    useState<google.maps.Map | null>(null);
-
-  const [isDragging, setIsDragging] = useState(false);
+  useAblySubscription(mapChannel, setMarkers, setPolylines, setTexts, space);
 
   useEffect(() => {
     let mousedownListener: google.maps.MapsEventListener | null = null;
@@ -245,17 +199,18 @@ const GoogleMaps: React.FC<Props> = ({
 
     const onMouseMove = (e: google.maps.MapMouseEvent) => {
       if (isDragging) {
-        const id = selectedItem;
-
         if (googleMapInstance) {
           googleMapInstance.setOptions({ draggable: false });
         }
 
         const newPosition = e.latLng?.toJSON();
-        if (id && newPosition) {
+        if (selectedItemId && newPosition) {
           setTexts((prevTexts) => ({
             ...prevTexts,
-            [id]: { ...prevTexts[id], position: newPosition },
+            [selectedItemId]: {
+              ...prevTexts[selectedItemId],
+              position: newPosition,
+            },
           }));
         }
       }
@@ -267,7 +222,6 @@ const GoogleMaps: React.FC<Props> = ({
           }
 
           break;
-        // Additional cases for new drawing modes can go here
         default:
           break;
       }
@@ -275,7 +229,7 @@ const GoogleMaps: React.FC<Props> = ({
 
     const onMouseUp = () => {
       setIsDragging(false);
-      setSelectedItem(null);
+      setSelectedItemId(null);
 
       switch (currentDrawingMode) {
         case "FREEHAND":
@@ -284,8 +238,12 @@ const GoogleMaps: React.FC<Props> = ({
             setFreehandPaths((prev) => ({ ...prev, [id]: currentPath }));
             setCurrentPath([]);
           }
-          setIsDrawing(false);
 
+          if (googleMapInstance) {
+            googleMapInstance.setOptions({ draggable: true });
+          }
+
+          // setIsDrawing(false);
           break;
         default:
           break;
@@ -297,11 +255,13 @@ const GoogleMaps: React.FC<Props> = ({
       if (googleMapInstance) {
         googleMapInstance.setOptions({ draggable: true });
       }
+
       const id = "freehand_" + Date.now().toString();
       setFreehandPaths((prev) => ({ ...prev, [id]: currentPath }));
       setCurrentPath([]);
     };
 
+    // --------
     document.addEventListener("mouseup", onMouseUpGlobal);
 
     if (googleMapInstance) {
@@ -326,11 +286,17 @@ const GoogleMaps: React.FC<Props> = ({
     };
   }, [isDrawing, currentPath, googleMapInstance, markers, isDragging]);
 
-  const [cursorPosition, setCursorPosition] = useState<{
-    lat: number;
-    lng: number;
-    state: string;
-  }>({ lat: 0, lng: 0, state: "move" });
+  useEffect(() => {
+    if (isDragging) {
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: false });
+      }
+    } else {
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: true });
+      }
+    }
+  }, [isDragging]);
 
   const handleCursorMove = (e: google.maps.MapMouseEvent) => {
     setCursorPosition({
@@ -361,14 +327,6 @@ const GoogleMaps: React.FC<Props> = ({
     });
   };
 
-  const { self, otherMembers } = useSpaceMembers(space);
-
-  const [texts, setTexts] = useState<Record<string, TextData>>({});
-
-  const [images, setImages] = useState<Record<string, ImageData>>({});
-
-  const [currentZoomLevel, setCurrentZoomLevel] = useState<number | null>(null);
-
   const handleZoomChanged = () => {
     if (googleMapInstance !== null) {
       const zoomLevel = googleMapInstance.getZoom();
@@ -376,20 +334,6 @@ const GoogleMaps: React.FC<Props> = ({
       console.log("Current zoom level:", zoomLevel);
     }
   };
-
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isDragging) {
-      if (googleMapInstance) {
-        googleMapInstance.setOptions({ draggable: false });
-      }
-    } else {
-      if (googleMapInstance) {
-        googleMapInstance.setOptions({ draggable: true });
-      }
-    }
-  }, [isDragging]);
 
   return (
     <div className="h-full w-full">
@@ -438,7 +382,7 @@ const GoogleMaps: React.FC<Props> = ({
                 }}
               />
             )}
-            {/* Cursors------------- */}
+            {/* Cursors-------------------------------------------*/}
             <YourCursor
               self={self as Member | null}
               space={space}
@@ -460,7 +404,7 @@ const GoogleMaps: React.FC<Props> = ({
                 position={textData.position}
                 text={textData.text}
                 zoomLevel={currentZoomLevel}
-                setSelectedItem={setSelectedItem}
+                setSelectedItemId={setSelectedItemId}
                 onTextChange={(newText) => {
                   setTexts({
                     ...texts,
@@ -469,20 +413,6 @@ const GoogleMaps: React.FC<Props> = ({
                 }}
               />
             ))}
-
-            {/* {Object.entries(images).map(([id, imageData]) => (
-              <ImageLabel
-                key={id}
-                position={imageData.position}
-                src={imageData.src}
-                onPositionChange={(newPosition) => {
-                  setImages({
-                    ...images,
-                    [id]: { ...imageData, position: newPosition },
-                  });
-                }}
-              />
-            ))} */}
           </GoogleMap>
           <MapActionBar
             currentDrawingMode={currentDrawingMode}
@@ -494,8 +424,10 @@ const GoogleMaps: React.FC<Props> = ({
   );
 };
 
-export default GoogleMaps;
+export default Map;
 
+// ==========================================================================
+// ==========================================================================
 // ==========================================================================
 
 type TextLabelProps = {
@@ -504,7 +436,7 @@ type TextLabelProps = {
   text: string;
   zoomLevel: number | null;
   onTextChange: (newText: string) => void;
-  setSelectedItem: (id: string | null) => void; // new prop
+  setSelectedItemId: (id: string | null) => void;
 };
 
 type TextData = {
@@ -518,7 +450,7 @@ const TextLabel: React.FC<TextLabelProps> = ({
   text,
   zoomLevel,
   onTextChange,
-  setSelectedItem,
+  setSelectedItemId,
 }) => {
   const handleTextClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     e.stopPropagation();
@@ -550,7 +482,7 @@ const TextLabel: React.FC<TextLabelProps> = ({
     if (!div) return;
 
     const handleMouseDown = (e: globalThis.MouseEvent): void => {
-      setSelectedItem(id);
+      setSelectedItemId(id);
     };
 
     div.addEventListener("mousedown", handleMouseDown);
@@ -572,9 +504,9 @@ const TextLabel: React.FC<TextLabelProps> = ({
         onChange={handleInputChange}
         onBlur={handleInputBlur}
         onClick={handleTextClick}
-        className="text-white text-lg font-bold inline-block whitespace-nowrap z-1000 pointer-events-auto border-none cursor-pointer bg-green-100/0"
+        className="text-white text-lg font-bold w-fit inline-block p-4 whitespace-nowrap z-1000 pointer-events-auto border-none cursor-pointer bg-green-100/0 outline-none"
         style={{
-          width: `${Math.max(8, inputValue.length * 8)}px`,
+          // width: `${Math.max(8, inputValue.length * 8)}px`,
           fontSize: calculateFontSize(),
         }}
       />

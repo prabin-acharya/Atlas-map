@@ -5,7 +5,7 @@ import { colours } from "../utils/helpers";
 import { mockNames } from "../utils/mockNames";
 import { SpacesContext } from "./SpacesContext";
 
-import GoogleMaps from "./GoogleMaps";
+import Map from "./Map";
 
 const mockName = () => mockNames[Math.floor(Math.random() * mockNames.length)];
 
@@ -39,7 +39,7 @@ const LiveCursors = () => {
         ref={liveCursors}
         className="flex-grow flex justify-center items-center relative w-full border-4 border-green-600 "
       >
-        <GoogleMaps
+        <Map
           currentDrawingMode={currentDrawingMode}
           setCurrentDrawingMode={setCurrentDrawingMode}
           space={space}
