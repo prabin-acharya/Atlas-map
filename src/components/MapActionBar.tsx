@@ -19,7 +19,7 @@ const MapActionBar: React.FC<Props> = ({
   const baseStyle = "m-2 bg-blue-100 p-2 rounded";
   const activeStyle = "border-green-800";
   const inactiveStyle =
-    "border-white hover:border-green-500 active:border-green-800";
+    "border-white hover:border-green-700 active:border-green-800";
 
   const getButtonStyle = (mode: DrawingMode | null) => {
     return `${baseStyle} border ${
@@ -28,7 +28,7 @@ const MapActionBar: React.FC<Props> = ({
   };
 
   return (
-    <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-10 p-1 px-2 rounded-md bg-white opacity-85 shadow-lg">
+    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 p-1 px-2 rounded-md bg-white opacity-85 shadow-lg">
       <button
         className={getButtonStyle(null)}
         onClick={() => setCurrentDrawingMode(null)}
@@ -69,7 +69,7 @@ const MapActionBar: React.FC<Props> = ({
             points="2,14 5,6 9,11 14,2"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
+            strokeWidth="2"
           />
           <circle cx="1" cy="14" r="2" fill="currentColor" />
           <circle cx="5" cy="6" r="2" fill="currentColor" />

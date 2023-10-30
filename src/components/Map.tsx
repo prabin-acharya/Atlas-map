@@ -27,7 +27,8 @@ const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
 
 type ImageOverlay = {
   url: string;
-  bounds: google.maps.LatLngBoundsLiteral;
+  bounds?: google.maps.LatLngBoundsLiteral;
+  position?: google.maps.LatLngLiteral;
 };
 
 interface Props {
@@ -416,7 +417,12 @@ const Map: React.FC<Props> = ({
   //
   //
   //
-  const [imageOverlays, setImageOverlays] = useState<ImageOverlay[]>([]);
+  const [imageOverlays, setImageOverlays] = useState<ImageOverlay[]>([
+    {
+      url: "https://avatars.githubusercontent.com/u/71175492?v=4",
+      position: { lat: 37.7749, lng: -122.4194 },
+    },
+  ]);
 
   const calculateBounds = (
     latLng: google.maps.LatLng
@@ -665,29 +671,32 @@ const Map: React.FC<Props> = ({
                 }}
               />
 
-              {imageOverlays.map((overlay, index) => (
+              {/* {imageOverlays.map((overlay, index) => (
                 <GroundOverlay
                   key={index}
                   url={overlay.url}
                   bounds={overlay.bounds}
                 />
+              ))} */}
+              {imageOverlays.map((overlay, index) => (
+                <OverlayView
+                  key={index}
+                  position={overlay.position}
+                  mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                >
+                  <img
+                    src={overlay.url}
+                    style={{
+                      width: "50px",
+                      height: "50px",
+                      boxShadow: "2px 2px 5px black",
+                      border: "2px solid red",
+                    }}
+                  />
+                </OverlayView>
               ))}
             </GoogleMap>
 
-            <OverlayView
-              position={position}
-              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-            >
-              <img
-                src="https://avatars.githubusercontent.com/u/71175492?v=4"
-                style={{
-                  width: "50px",
-                  height: "50px",
-                  boxShadow: "2px 2px 5px black",
-                  border: "2px solid red",
-                }}
-              />
-            </OverlayView>
             {showOverlay && (
               <div
                 className="absolute inset-0 w-full h-full  z-10  bg-orange-600 opacity-10"

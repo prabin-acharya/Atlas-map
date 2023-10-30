@@ -115,33 +115,15 @@ const MemberCursors = ({
         if (positions[connectionId].state === "leave") return;
         const { cursorColor, nameColor } = profileData.userColors;
         return (
-          <>
-            <Marker
-              key={connectionId}
-              icon={markerIcon}
-              clickable={false}
-              position={{
-                lat: positions[connectionId].position.x,
-                lng: positions[connectionId].position.y,
-              }}
-            />
-            {/* <div
-              key={connectionId}
-              id={`member-cursor-${connectionId}`}
-              className="absolute"
-              style={{
-                left: `${positions[connectionId].position.x}px`,
-                top: `${positions[connectionId].position.y}px`,
-              }}
-            >
-              <CursorSvg cursorColor={cursorColor} />
-              <div
-                className={`px-4 py-2 m-2 ${nameColor} rounded-full text-sm text-white whitespace-nowrap member-cursor`}
-              >
-                {profileData.name}
-              </div>
-            </div> */}
-          </>
+          <Marker
+            key={connectionId}
+            icon={markerIcon}
+            clickable={false}
+            position={{
+              lat: positions[connectionId].position.x,
+              lng: positions[connectionId].position.y,
+            }}
+          />
         );
       })}
     </>
