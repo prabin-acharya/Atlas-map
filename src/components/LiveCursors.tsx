@@ -34,21 +34,23 @@ const LiveCursors = () => {
 
   return (
     <div className="flex flex-col border-2 border-red-600 h-screen">
-      <div className="w-full h-14 bg-slate-600 flex items-center">
+      <div className="w-full h-14 bg-slate-600 flex items-center justify-between">
         <h2 className="text-white text-3xl font-extrabold p-6 relative">
           Atlas
           <span className="text-xxs p-1 ml-2 rounded-md bg-yellow-600 text-black">
             ALPHA
           </span>
         </h2>
-        <div
-          className="avatar-stack-container example-container"
-          id="avatar-stack"
-        >
-          <Avatars
-            self={self as Member | null}
-            otherUsers={otherMembers as Member[]}
-          />
+        <div className="flex space-x-2 mr-4 items-center">
+          <div className="pr-6" id="avatar-stack">
+            <Avatars
+              self={self as Member | null}
+              otherUsers={otherMembers as Member[]}
+            />
+          </div>
+          <button className="px-2 py-2 h-fit b-2 text-lg font-semibold text-white bg-pink-400 rounded-md border-purple-500 shadow-md">
+            Share
+          </button>
         </div>
       </div>
       <div

@@ -27,7 +27,7 @@ const SelfAvatar = ({ self }: { self: Member | null }) => {
       />
 
       {hover && self ? (
-        <div className="absolute -top-16 px-2 py-2 bg-black rounded-lg text-white min-w-[240px]">
+        <div className="absolute top-12 px-2 py-2 bg-black rounded-lg text-white min-w-[240px] z-50">
           <UserInfo user={self} isSelf={true} />
         </div>
       ) : null}
@@ -94,7 +94,7 @@ const OtherAvatars = ({
             </div>
 
             {hoveredClientId === user.clientId ? (
-              <div className="absolute -top-16 px-2 py-2 bg-black rounded-lg text-white min-w-[240px]">
+              <div className="absolute top-12 px-2 py-2 bg-black rounded-lg text-white min-w-[240px] z-50">
                 <UserInfo user={user} />
               </div>
             ) : null}
