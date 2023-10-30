@@ -268,6 +268,20 @@ const Map: React.FC<Props> = ({
     };
 
     const onMouseMove = (e: google.maps.MapMouseEvent) => {
+      // text move -- here need to
+      if (selectedItemId && selectedItemId.split("_")[0] == "text") {
+        const newPosition = e.latLng?.toJSON();
+        if (selectedItemId && newPosition) {
+          setTexts((prevTexts) => ({
+            ...prevTexts,
+            [selectedItemId]: {
+              ...prevTexts[selectedItemId],
+              position: newPosition,
+            },
+          }));
+        }
+      }
+
       switch (currentDrawingMode) {
         case "FREEHAND":
           if (isDrawingFreehand && e.latLng) {
@@ -275,19 +289,20 @@ const Map: React.FC<Props> = ({
           }
           break;
         case "TEXT":
-          if (selectedItemId) {
-            const newPosition = e.latLng?.toJSON();
-            if (selectedItemId && newPosition) {
-              setTexts((prevTexts) => ({
-                ...prevTexts,
-                [selectedItemId]: {
-                  ...prevTexts[selectedItemId],
-                  position: newPosition,
-                },
-              }));
-            }
-          }
-          break;
+        // console.log("here!");
+        // if (selectedItemId) {
+        //   const newPosition = e.latLng?.toJSON();
+        //   if (selectedItemId && newPosition) {
+        //     setTexts((prevTexts) => ({
+        //       ...prevTexts,
+        //       [selectedItemId]: {
+        //         ...prevTexts[selectedItemId],
+        //         position: newPosition,
+        //       },
+        //     }));
+        //   }
+        // }
+        // break;
         default:
           break;
       }
@@ -406,7 +421,7 @@ const Map: React.FC<Props> = ({
   const calculateBounds = (
     latLng: google.maps.LatLng
   ): google.maps.LatLngBoundsLiteral => {
-    const delta = 0.01; // This value can be adjusted based on how large you want the image overlay to be
+    const delta = 0.136; // This value can be adjusted based on how large you want the image overlay to be
     return {
       north: latLng.lat() + delta,
       south: latLng.lat() - delta,
@@ -486,14 +501,14 @@ const Map: React.FC<Props> = ({
   const [captureDrop, setCaptureDrop] = useState(false);
 
   useEffect(() => {
-    const handleGlobalDragOver = (e) => {
+    const handleGlobalDragOver = (e: DragEvent) => {
       console.log("DRAG OVER");
       e.preventDefault();
       setShowOverlay(true);
       setCaptureDrop(true); // Enable drop capture
     };
 
-    const handleGlobalDrop = (e) => {
+    const handleGlobalDrop = (e: DragEvent) => {
       console.log("GLOBAL DROP");
 
       e.preventDefault(); // Add this line to prevent the default behavior
@@ -511,7 +526,7 @@ const Map: React.FC<Props> = ({
     };
   }, []);
 
-  console.log(imageOverlays, "############33");
+  const position = { lat: 37.7749, lng: -122.4194 };
 
   return (
     <div className="h-full w-full">
@@ -658,6 +673,21 @@ const Map: React.FC<Props> = ({
                 />
               ))}
             </GoogleMap>
+
+            <OverlayView
+              position={position}
+              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+            >
+              <img
+                src="https://avatars.githubusercontent.com/u/71175492?v=4"
+                style={{
+                  width: "50px",
+                  height: "50px",
+                  boxShadow: "2px 2px 5px black",
+                  border: "2px solid red",
+                }}
+              />
+            </OverlayView>
             {showOverlay && (
               <div
                 className="absolute inset-0 w-full h-full  z-10  bg-orange-600 opacity-10"
@@ -670,10 +700,10 @@ const Map: React.FC<Props> = ({
                 onDragOver={(e) => e.preventDefault()}
               ></div>
             )}
-            {/* <MapActionBar
+            <MapActionBar
               currentDrawingMode={currentDrawingMode}
               setCurrentDrawingMode={setCurrentDrawingMode}
-            /> */}
+            />
           </div>
         </>
       )}
