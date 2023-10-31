@@ -55,6 +55,7 @@ const Map: React.FC<Props> = ({
 
   const client = useAbly();
   const mapChannel = client.channels.get("map-updates");
+  const freehandChannel = client.channels.get("freehand-updates");
 
   const { self, otherMembers } = useSpaceMembers(space);
 
@@ -92,12 +93,6 @@ const Map: React.FC<Props> = ({
     mapChannel.publish("drag-marker", { id, ...newPosition });
   };
 
-  //
-  //
-  //
-  //
-  //
-
   const [currentZoomLevel, setCurrentZoomLevel] = useState<number | null>(null);
   const [cursorPosition, setCursorPosition] = useState<{
     lat: number;
@@ -130,29 +125,21 @@ const Map: React.FC<Props> = ({
     [key: string]: google.maps.LatLngLiteral[];
   }>({});
 
-  const onPolylineComplete = (polyline: google.maps.Polyline) => {
-    const pathArray = polyline.getPath().getArray();
-    const polylinePoints: google.maps.LatLngLiteral[] = pathArray.map((point) =>
-      point.toJSON()
-    );
-
-    if (polylinePoints.length) {
-      const id = "polyline" + Date.now().toString();
-      setPolylines((prevPolylines) => ({
-        ...prevPolylines,
-        [id]: polylinePoints,
-      }));
-      mapChannel.publish("new-polyline", { id, polylinePoints });
-    }
-
-    polyline.setMap(null);
-  };
   //
   //
   //
   //
 
-  useAblySubscription(mapChannel, setMarkers, setPolylines, setTexts, space);
+  useAblySubscription(
+    mapChannel,
+    freehandChannel,
+    setMarkers,
+    setPolylines,
+    setTexts,
+    setFreehandPaths,
+    setPolygons,
+    space
+  );
 
   useEffect(() => {
     let mousedownListener: google.maps.MapsEventListener | null = null;
@@ -187,6 +174,13 @@ const Map: React.FC<Props> = ({
               ...texts,
               [id]: { position: coords, text: "default text" },
             });
+
+            mapChannel.publish("new-text", {
+              [id]: {
+                position: coords,
+                text: "default text",
+              },
+            });
             setCurrentDrawingMode(null);
           }
           break;
@@ -213,6 +207,10 @@ const Map: React.FC<Props> = ({
               setCurrentFreehandPath([]);
               const id = "polyline_" + Date.now().toString();
               setPolylines((prev) => ({ ...prev, [id]: currentFreehandPath }));
+
+              mapChannel.publish("new-polyline", {
+                [id]: currentFreehandPath,
+              });
             }
           }
           break;
@@ -243,6 +241,10 @@ const Map: React.FC<Props> = ({
                 ...prev,
                 [id]: currentFreehandPath,
               }));
+
+              mapChannel.publish("new-polygon", {
+                [id]: currentFreehandPath,
+              });
             }
           }
 
@@ -321,6 +323,10 @@ const Map: React.FC<Props> = ({
         case "FREEHAND":
           const id = "freehand_" + Date.now().toString();
           setFreehandPaths((prev) => ({ ...prev, [id]: currentFreehandPath }));
+
+          mapChannel.publish("new-freehand", {
+            [id]: currentFreehandPath,
+          });
           setCurrentFreehandPath([]);
 
           if (googleMapInstance) {
@@ -533,6 +539,8 @@ const Map: React.FC<Props> = ({
   }, []);
 
   const position = { lat: 37.7749, lng: -122.4194 };
+
+  console.log(freehandPaths, "****************888");
 
   return (
     <div className="h-full w-full">
@@ -800,9 +808,8 @@ const TextLabel: React.FC<TextLabelProps> = ({
         onChange={handleInputChange}
         onBlur={handleInputBlur}
         onClick={handleTextClick}
-        className="text-white text-lg font-bold w-fit inline-block p-4 whitespace-nowrap z-1000 pointer-events-auto border-none cursor-pointer bg-green-100/0 outline-none"
+        className="no-select text-white text-lg font-bold w-fit inline-block p-4 whitespace-nowrap z-1000 pointer-events-auto border-none cursor-pointer bg-green-100/0 outline-none select-none"
         style={{
-          // width: `${Math.max(8, inputValue.length * 8)}px`,
           fontSize: calculateFontSize(),
         }}
       />
