@@ -27,8 +27,8 @@ const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
 
 type ImageOverlay = {
   url: string;
+  position: google.maps.LatLngLiteral;
   bounds?: google.maps.LatLngBoundsLiteral;
-  position?: google.maps.LatLngLiteral;
 };
 
 interface Props {
@@ -125,6 +125,22 @@ const Map: React.FC<Props> = ({
     [key: string]: google.maps.LatLngLiteral[];
   }>({});
 
+  // const [imageOverlays, setImageOverlays] = useState<ImageOverlay[]>([
+  //   {
+  //     url: "https://avatars.githubusercontent.com/u/71175492?v=4",
+  //     position: { lat: 37.7749, lng: -122.4194 },
+  //   },
+  // ]);
+
+  const [imageOverlays, setImageOverlays] = useState<{
+    [key: string]: ImageOverlay;
+  }>({
+    abc: {
+      url: "https://avatars.githubusercontent.com/u/71175492?v=4",
+      position: { lat: 37.7749, lng: -122.4194 },
+    },
+  });
+
   //
   //
   //
@@ -138,6 +154,7 @@ const Map: React.FC<Props> = ({
     setTexts,
     setFreehandPaths,
     setPolygons,
+    setImageOverlays,
     space
   );
 
@@ -423,12 +440,6 @@ const Map: React.FC<Props> = ({
   //
   //
   //
-  const [imageOverlays, setImageOverlays] = useState<ImageOverlay[]>([
-    {
-      url: "https://avatars.githubusercontent.com/u/71175492?v=4",
-      position: { lat: 37.7749, lng: -122.4194 },
-    },
-  ]);
 
   const calculateBounds = (
     latLng: google.maps.LatLng
@@ -495,12 +506,34 @@ const Map: React.FC<Props> = ({
 
               // Calculate bounds for image overlay
               const calculatedBounds = calculateBounds(latLng);
+              function getCenterFromBounds(bounds: any) {
+                const lat = (bounds.north + bounds.south) / 2;
+                const lng = (bounds.east + bounds.west) / 2;
+                return { lat, lng };
+              }
+              const centerPosition = getCenterFromBounds(calculatedBounds);
+
+              console.log(calculateBounds, "----+");
+
+              const id = "image" + Date.now().toString();
+
+              setImageOverlays((prev) => ({
+                ...prev,
+                [id]: {
+                  url: imageBlobUrl,
+                  position: centerPosition,
+                },
+              }));
+
+              mapChannel.publish("new-image", {
+                [id]: {
+                  position: centerPosition,
+                  url: imageBlobUrl,
+                },
+              });
 
               // Update state
-              setImageOverlays([
-                ...imageOverlays,
-                { url: imageBlobUrl, bounds: calculatedBounds },
-              ]);
+              // setImageOverlays([...imageOverlays, {}]);
             }
           }
         }
@@ -539,8 +572,7 @@ const Map: React.FC<Props> = ({
   }, []);
 
   const position = { lat: 37.7749, lng: -122.4194 };
-
-  console.log(freehandPaths, "****************888");
+  console.log(imageOverlays, "#####@@@@");
 
   return (
     <div className="h-full w-full">
@@ -638,11 +670,6 @@ const Map: React.FC<Props> = ({
                 />
               )}
               {/* Cursors-------------------------------------------*/}
-              <YourCursor
-                self={self as Member | null}
-                space={space}
-                cursorPosition={cursorPosition}
-              />
               <MemberCursors
                 otherUsers={
                   otherMembers.filter(
@@ -669,7 +696,7 @@ const Map: React.FC<Props> = ({
                 />
               ))}
               {/* IMAGE---------------------------------------- */}
-              <GroundOverlay
+              {/* <GroundOverlay
                 url="https://avatars.githubusercontent.com/u/71175492?v=4"
                 bounds={{
                   north: 37.8049,
@@ -677,7 +704,7 @@ const Map: React.FC<Props> = ({
                   east: -122.3894,
                   west: -122.4194,
                 }}
-              />
+              /> */}
 
               {/* {imageOverlays.map((overlay, index) => (
                 <GroundOverlay
@@ -686,14 +713,14 @@ const Map: React.FC<Props> = ({
                   bounds={overlay.bounds}
                 />
               ))} */}
-              {imageOverlays.map((overlay, index) => (
+              {Object.entries(imageOverlays).map(([id, image]) => (
                 <OverlayView
-                  key={index}
-                  position={overlay.position}
+                  key={id}
+                  position={image.position}
                   mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
                 >
                   <img
-                    src={overlay.url}
+                    src={image.url}
                     style={{
                       width: "50px",
                       height: "50px",
@@ -711,7 +738,7 @@ const Map: React.FC<Props> = ({
                 style={{ pointerEvents: captureDrop ? "auto" : "none" }}
                 onDrop={(e) => {
                   console.log("**********onDrop");
-                  e.stopPropagation(); // Stop the event from bubbling up to the window
+                  e.stopPropagation();
                   handleImageDrop(e);
                 }}
                 onDragOver={(e) => e.preventDefault()}

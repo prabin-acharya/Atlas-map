@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 
 import type { Space, CursorUpdate as _CursorUpdate } from "@ably/spaces";
-import { Marker } from "@react-google-maps/api";
+import { Marker, OverlayView } from "@react-google-maps/api";
 import { Member } from "../utils/types";
+import CursorSvg from "./CursorSvg";
 
 // 💡 This component is used to render the cursor of the user
 const YourCursor = ({
@@ -32,33 +33,7 @@ const YourCursor = ({
     strokeWeight: 0.6,
   };
 
-  return (
-    <>
-      <Marker
-        icon={markerIcon}
-        clickable={false}
-        position={{
-          lat: cursorPosition.lat,
-          lng: cursorPosition.lng,
-        }}
-      />
-      {/* <div
-        className="absolute border-2 border-yellow-600"
-        onMouseMove={(e) => handleSelfCursorMove(e)}
-        style={{
-          top: `${cursorPosition.top}px`,
-          left: `${cursorPosition.left}px`,
-        }}
-      >
-        <CursorSvg cursorColor={cursorColor} />
-        <div
-          className={`px-4 py-2 m-2 ${nameColor} rounded-full text-sm text-white whitespace-nowrap`}
-        >
-          You
-        </div>
-      </div> */}
-    </>
-  );
+  return <></>;
 };
 
 type CursorUpdate = Omit<_CursorUpdate, "data"> & {
@@ -115,15 +90,22 @@ const MemberCursors = ({
         if (positions[connectionId].state === "leave") return;
         const { cursorColor, nameColor } = profileData.userColors;
         return (
-          <Marker
-            key={connectionId}
-            icon={markerIcon}
-            clickable={false}
+          <OverlayView
             position={{
               lat: positions[connectionId].position.x,
               lng: positions[connectionId].position.y,
             }}
-          />
+            mapPaneName="markerLayer"
+          >
+            <>
+              <CursorSvg cursorColor={cursorColor} />
+              <div
+                className={`px-4 py-2 m-2 ${nameColor} rounded-full text-sm text-white whitespace-nowrap member-cursor w-fit`}
+              >
+                {profileData.name}
+              </div>
+            </>
+          </OverlayView>
         );
       })}
     </>

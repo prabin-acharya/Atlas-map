@@ -33,7 +33,7 @@ const LiveCursors = () => {
     useState<DrawingMode | null>(null);
 
   return (
-    <div className="flex flex-col border-2 border-red-600 h-screen">
+    <div className="flex flex-col h-screen">
       <div className="w-full h-14 bg-slate-600 flex items-center justify-between">
         <h2 className="text-white text-3xl font-extrabold p-6 relative">
           Atlas
@@ -56,7 +56,7 @@ const LiveCursors = () => {
       <div
         id="live-cursors"
         ref={liveCursors}
-        className="flex-grow flex justify-center items-center relative w-full border-4 border-green-600 "
+        className="flex-grow flex justify-center items-center relative w-full "
       >
         <Map
           currentDrawingMode={currentDrawingMode}

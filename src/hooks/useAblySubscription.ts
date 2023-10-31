@@ -6,6 +6,12 @@ type TextData = {
   text: string;
 };
 
+type ImageOverlay = {
+  url: string;
+  position: google.maps.LatLngLiteral;
+  bounds?: google.maps.LatLngBoundsLiteral;
+};
+
 const useAblySubscription = (
   mapChannel: any,
   freehandChannel: any,
@@ -22,6 +28,11 @@ const useAblySubscription = (
   setPolygons: React.Dispatch<
     React.SetStateAction<{
       [key: string]: google.maps.LatLngLiteral[];
+    }>
+  >,
+  setImageOverlays: React.Dispatch<
+    React.SetStateAction<{
+      [key: string]: ImageOverlay;
     }>
   >,
   space?: Space
@@ -166,6 +177,28 @@ const useAblySubscription = (
         const { position, text } = message.data[id];
 
         setTexts((prev) => ({ ...prev, [id]: { position, text } }));
+      }
+    );
+
+    const newImageSubscription = mapChannel.subscribe(
+      "new-image",
+      (message: {
+        data: {
+          [key: string]: {
+            url: string;
+            position: google.maps.LatLngLiteral;
+          };
+        };
+        clientId: string;
+      }) => {
+        if (message.clientId == space?.client.auth.clientId) return;
+
+        const id = Object.keys(message.data)[0];
+        const { url, position } = message.data[id];
+
+        setImageOverlays((prev) => ({ ...prev, [id]: { url, position } }));
+
+        console.log("here-----------------!");
       }
     );
 

@@ -43,7 +43,6 @@ const OtherAvatars = ({
   usersCount: number;
 }) => {
   const [hoveredClientId, setHoveredClientId] = useState<string | null>(null);
-  //   console.log(users, "##++", users[0].profileData.userColors.nameColor);
   return (
     <>
       {users.map((user, index) => {
