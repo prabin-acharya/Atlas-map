@@ -5,7 +5,6 @@ import type {
 } from "@ably/spaces";
 import {
   GoogleMap,
-  GroundOverlay,
   Marker,
   Polygon,
   Polyline,
@@ -93,7 +92,7 @@ const Map: React.FC<Props> = ({
     mapChannel.publish("drag-marker", { id, ...newPosition });
   };
 
-  const [currentZoomLevel, setCurrentZoomLevel] = useState<number | null>(null);
+  const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(10);
   const [cursorPosition, setCursorPosition] = useState<{
     lat: number;
     lng: number;
@@ -507,36 +506,17 @@ const Map: React.FC<Props> = ({
                 }
                 const centerPosition = getCenterFromBounds(calculatedBounds);
 
-                console.log(calculateBounds, "----+");
-
-                const id = "image" + Date.now().toString();
-
-                // const baseSize = 50; // Base size at zoom level 1
-
-                // const size = baseSize * (1 + (currentZoomLevel! - 1) * 0.1);
-                // const size = {
-                //   width: baseSize * (1 + (currentZoomLevel! - 1) * 0.1),
-                //   height: baseSize * (1 + (currentZoomLevel! - 1) * 0.1),
-                // };
+                const id = "image_" + Date.now().toString();
 
                 const currentSize = {
-                  height: 200, // Fixed height at current zoom level
-                  width: 200 * aspectRatio, // Calculate width based on aspect ratio
+                  height: 200,
+                  width: 200 * aspectRatio,
                 };
 
                 const baseSize = {
                   height:
                     currentSize.height / Math.pow(2, currentZoomLevel! - 1),
                   width: currentSize.width / Math.pow(2, currentZoomLevel! - 1),
-                };
-                const heightAtZoom1 =
-                  200 / Math.pow(1.1, currentZoomLevel! - 1);
-
-                const widthAtZoom1 = heightAtZoom1 * aspectRatio;
-
-                const size = {
-                  height: heightAtZoom1,
-                  width: widthAtZoom1,
                 };
 
                 setImageOverlays((prev) => ({
@@ -545,7 +525,6 @@ const Map: React.FC<Props> = ({
                     url: imageBlobUrl,
                     position: centerPosition,
                     size: baseSize,
-                    // size: { width: 120, height: 120 }, // Initialize size
                   },
                 }));
 
@@ -632,6 +611,14 @@ const Map: React.FC<Props> = ({
   };
 
   console.log(selectedItemId, currentZoomLevel);
+
+  useEffect(() => {
+    if (googleMapInstance !== null) {
+      const zoomLevel = googleMapInstance.getZoom();
+      if (zoomLevel) setCurrentZoomLevel(zoomLevel);
+      console.log("Current zoom level:", zoomLevel);
+    }
+  }, []);
 
   return (
     <div className="h-full w-full">
@@ -728,6 +715,7 @@ const Map: React.FC<Props> = ({
                   }}
                 />
               )}
+
               {/* Cursors-------------------------------------------*/}
               <MemberCursors
                 otherUsers={
@@ -754,24 +742,8 @@ const Map: React.FC<Props> = ({
                   }}
                 />
               ))}
-              {/* IMAGE---------------------------------------- */}
-              {/* <GroundOverlay
-                url="https://avatars.githubusercontent.com/u/71175492?v=4"
-                bounds={{
-                  north: 37.8049,
-                  south: 37.7749,
-                  east: -122.3894,
-                  west: -122.4194,
-                }}
-              /> */}
 
-              {/* {imageOverlays.map((overlay, index) => (
-                <GroundOverlay
-                  key={index}
-                  url={overlay.url}
-                  bounds={overlay.bounds}
-                />
-              ))} */}
+              {/* IMAGE---------------------------------------- */}
               {Object.entries(imageOverlays).map(([id, image]) => (
                 <OverlayView
                   key={id}
