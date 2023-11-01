@@ -9,7 +9,7 @@ type TextData = {
 type ImageOverlay = {
   url: string;
   position: google.maps.LatLngLiteral;
-  bounds?: google.maps.LatLngBoundsLiteral;
+  size: { width: number; height: number };
 };
 
 const useAblySubscription = (
@@ -187,6 +187,7 @@ const useAblySubscription = (
           [key: string]: {
             url: string;
             position: google.maps.LatLngLiteral;
+            size: { width: number; height: number };
           };
         };
         clientId: string;
@@ -194,9 +195,12 @@ const useAblySubscription = (
         if (message.clientId == space?.client.auth.clientId) return;
 
         const id = Object.keys(message.data)[0];
-        const { url, position } = message.data[id];
+        const { url, position, size } = message.data[id];
 
-        setImageOverlays((prev) => ({ ...prev, [id]: { url, position } }));
+        setImageOverlays((prev) => ({
+          ...prev,
+          [id]: { url, position, size },
+        }));
 
         console.log("here-----------------!");
       }

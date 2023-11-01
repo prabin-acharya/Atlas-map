@@ -28,7 +28,7 @@ const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
 type ImageOverlay = {
   url: string;
   position: google.maps.LatLngLiteral;
-  bounds?: google.maps.LatLngBoundsLiteral;
+  size: { width: number; height: number };
 };
 
 interface Props {
@@ -125,21 +125,9 @@ const Map: React.FC<Props> = ({
     [key: string]: google.maps.LatLngLiteral[];
   }>({});
 
-  // const [imageOverlays, setImageOverlays] = useState<ImageOverlay[]>([
-  //   {
-  //     url: "https://avatars.githubusercontent.com/u/71175492?v=4",
-  //     position: { lat: 37.7749, lng: -122.4194 },
-  //   },
-  // ]);
-
   const [imageOverlays, setImageOverlays] = useState<{
     [key: string]: ImageOverlay;
-  }>({
-    abc: {
-      url: "https://avatars.githubusercontent.com/u/71175492?v=4",
-      position: { lat: 37.7749, lng: -122.4194 },
-    },
-  });
+  }>({});
 
   //
   //
@@ -483,60 +471,94 @@ const Map: React.FC<Props> = ({
         // Create blob URL
         const imageBlobUrl = URL.createObjectURL(file);
 
-        // Retrieve map properties
-        if (googleMapInstance) {
-          const bounds = googleMapInstance.getBounds();
+        const tempImg = new Image();
+        tempImg.src = imageBlobUrl;
 
-          if (bounds) {
-            const ne = bounds.getNorthEast();
-            const sw = bounds.getSouthWest();
-            const zoom = googleMapInstance.getZoom();
+        tempImg.onload = () => {
+          const aspectRatio = tempImg.width / tempImg.height;
 
-            if (zoom !== null) {
-              const latLng = new google.maps.LatLng(
-                sw.lat() +
-                  (ne.lat() - sw.lat()) *
-                    (e.nativeEvent.offsetY /
-                      googleMapInstance.getDiv().offsetHeight),
-                sw.lng() +
-                  (ne.lng() - sw.lng()) *
-                    (e.nativeEvent.offsetX /
-                      googleMapInstance.getDiv().offsetWidth)
-              );
+          // Retrieve map properties
+          if (googleMapInstance) {
+            const bounds = googleMapInstance.getBounds();
 
-              // Calculate bounds for image overlay
-              const calculatedBounds = calculateBounds(latLng);
-              function getCenterFromBounds(bounds: any) {
-                const lat = (bounds.north + bounds.south) / 2;
-                const lng = (bounds.east + bounds.west) / 2;
-                return { lat, lng };
+            if (bounds) {
+              const ne = bounds.getNorthEast();
+              const sw = bounds.getSouthWest();
+              const zoom = googleMapInstance.getZoom();
+
+              if (zoom !== null) {
+                const latLng = new google.maps.LatLng(
+                  sw.lat() +
+                    (ne.lat() - sw.lat()) *
+                      (e.nativeEvent.offsetY /
+                        googleMapInstance.getDiv().offsetHeight),
+                  sw.lng() +
+                    (ne.lng() - sw.lng()) *
+                      (e.nativeEvent.offsetX /
+                        googleMapInstance.getDiv().offsetWidth)
+                );
+
+                // Calculate bounds for image overlay
+                const calculatedBounds = calculateBounds(latLng);
+                function getCenterFromBounds(bounds: any) {
+                  const lat = (bounds.north + bounds.south) / 2;
+                  const lng = (bounds.east + bounds.west) / 2;
+                  return { lat, lng };
+                }
+                const centerPosition = getCenterFromBounds(calculatedBounds);
+
+                console.log(calculateBounds, "----+");
+
+                const id = "image" + Date.now().toString();
+
+                // const baseSize = 50; // Base size at zoom level 1
+
+                // const size = baseSize * (1 + (currentZoomLevel! - 1) * 0.1);
+                // const size = {
+                //   width: baseSize * (1 + (currentZoomLevel! - 1) * 0.1),
+                //   height: baseSize * (1 + (currentZoomLevel! - 1) * 0.1),
+                // };
+
+                const currentSize = {
+                  height: 200, // Fixed height at current zoom level
+                  width: 200 * aspectRatio, // Calculate width based on aspect ratio
+                };
+
+                const baseSize = {
+                  height:
+                    currentSize.height / Math.pow(2, currentZoomLevel! - 1),
+                  width: currentSize.width / Math.pow(2, currentZoomLevel! - 1),
+                };
+                const heightAtZoom1 =
+                  200 / Math.pow(1.1, currentZoomLevel! - 1);
+
+                const widthAtZoom1 = heightAtZoom1 * aspectRatio;
+
+                const size = {
+                  height: heightAtZoom1,
+                  width: widthAtZoom1,
+                };
+
+                setImageOverlays((prev) => ({
+                  ...prev,
+                  [id]: {
+                    url: imageBlobUrl,
+                    position: centerPosition,
+                    size: baseSize,
+                    // size: { width: 120, height: 120 }, // Initialize size
+                  },
+                }));
+
+                mapChannel.publish("new-image", {
+                  [id]: {
+                    position: centerPosition,
+                    url: imageBlobUrl,
+                  },
+                });
               }
-              const centerPosition = getCenterFromBounds(calculatedBounds);
-
-              console.log(calculateBounds, "----+");
-
-              const id = "image" + Date.now().toString();
-
-              setImageOverlays((prev) => ({
-                ...prev,
-                [id]: {
-                  url: imageBlobUrl,
-                  position: centerPosition,
-                },
-              }));
-
-              mapChannel.publish("new-image", {
-                [id]: {
-                  position: centerPosition,
-                  url: imageBlobUrl,
-                },
-              });
-
-              // Update state
-              // setImageOverlays([...imageOverlays, {}]);
             }
           }
-        }
+        };
       };
     }
     setShowOverlay(false);
@@ -573,6 +595,43 @@ const Map: React.FC<Props> = ({
 
   const position = { lat: 37.7749, lng: -122.4194 };
   console.log(imageOverlays, "#####@@@@");
+
+  const initiateResize = (e: React.MouseEvent<HTMLDivElement>, id: string) => {
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: false });
+      }
+      const newWidth = imageOverlays[id].size.width + (e.clientX - startX);
+      const newHeight = imageOverlays[id].size.height + (e.clientY - startY);
+
+      const baseWidth = newWidth / Math.pow(2, currentZoomLevel! - 1);
+      const baseHeight = newHeight / Math.pow(2, currentZoomLevel! - 1);
+
+      setImageOverlays((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          size: { width: baseWidth, height: baseHeight },
+        },
+      }));
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: true });
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  console.log(selectedItemId, currentZoomLevel);
 
   return (
     <div className="h-full w-full">
@@ -719,22 +778,33 @@ const Map: React.FC<Props> = ({
                   position={image.position}
                   mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
                 >
-                  <img
-                    src={image.url}
+                  <div
                     style={{
-                      width: "50px",
-                      height: "50px",
-                      boxShadow: "2px 2px 5px black",
-                      border: "2px solid red",
+                      width: `${
+                        image.size.width * Math.pow(2, currentZoomLevel! - 1)
+                      }px`,
+                      height: `${
+                        image.size.height * Math.pow(2, currentZoomLevel! - 1)
+                      }px`,
                     }}
-                  />
+                    onMouseDown={(e) => initiateResize(e, id)}
+                    onClick={() => setSelectedItemId(id)}
+                    className={`border-2 ${
+                      selectedItemId == id ? " border-red-500" : ""
+                    }`}
+                  >
+                    <img
+                      src={image.url}
+                      className="w-full h-full shadow-lg border"
+                    />
+                  </div>
                 </OverlayView>
               ))}
             </GoogleMap>
 
             {showOverlay && (
               <div
-                className="absolute inset-0 w-full h-full  z-10  bg-orange-600 opacity-10"
+                className="absolute inset-0 w-full h-full z-10  bg-orange-600 opacity-10"
                 style={{ pointerEvents: captureDrop ? "auto" : "none" }}
                 onDrop={(e) => {
                   console.log("**********onDrop");
