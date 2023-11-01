@@ -269,6 +269,8 @@ const Map: React.FC<Props> = ({
           }
           break;
 
+        case "IMAGE":
+
         default:
           break;
       }
@@ -283,6 +285,20 @@ const Map: React.FC<Props> = ({
             ...prevTexts,
             [selectedItemId]: {
               ...prevTexts[selectedItemId],
+              position: newPosition,
+            },
+          }));
+        }
+      }
+
+      // image move
+      if (selectedItemId && selectedItemId.split("_")[0] == "image") {
+        const newPosition = e.latLng?.toJSON();
+        if (selectedItemId && newPosition) {
+          setImageOverlays((prev) => ({
+            ...prev,
+            [selectedItemId]: {
+              ...prev[selectedItemId],
               position: newPosition,
             },
           }));
@@ -320,8 +336,13 @@ const Map: React.FC<Props> = ({
     };
 
     const onMouseUpGlobal = () => {
+      console.log("On Mouse UP Global");
       setIsDrawingFreehand(false);
       setSelectedItemId(null);
+
+      if (googleMapInstance) {
+        googleMapInstance.setOptions({ draggable: true });
+      }
 
       switch (currentDrawingMode) {
         case "FREEHAND":
@@ -406,7 +427,6 @@ const Map: React.FC<Props> = ({
   useEffect(() => {
     if (selectedItemId) {
       if (googleMapInstance) {
-        console.log("&&****___+++");
         googleMapInstance.setOptions({ draggable: false });
       }
     } else {
@@ -573,12 +593,26 @@ const Map: React.FC<Props> = ({
   }, []);
 
   const position = { lat: 37.7749, lng: -122.4194 };
-  console.log(imageOverlays, "#####@@@@");
 
   const initiateResize = (e: React.MouseEvent<HTMLDivElement>, id: string) => {
+    const div = e.currentTarget.getBoundingClientRect();
     const startX = e.clientX;
     const startY = e.clientY;
+    const edgeThreshold = 5; // You can set this value according to your needs
 
+    // // Calculate distance from the click point to each edge
+    // const distanceToLeft = Math.abs(startX - div.left);
+    // const distanceToRight = Math.abs(startX - div.right);
+    // const distanceToTop = Math.abs(startY - div.top);
+    // const distanceToBottom = Math.abs(startY - div.bottom);
+
+    // // Check if click is within edgeThreshold pixels of any edge
+    // if (
+    //   distanceToLeft < edgeThreshold ||
+    //   distanceToRight < edgeThreshold ||
+    //   distanceToTop < edgeThreshold ||
+    //   distanceToBottom < edgeThreshold
+    // ) {
     const handleMouseMove = (e: MouseEvent) => {
       if (googleMapInstance) {
         googleMapInstance.setOptions({ draggable: false });
@@ -608,9 +642,8 @@ const Map: React.FC<Props> = ({
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
+    // }
   };
-
-  console.log(selectedItemId, currentZoomLevel);
 
   useEffect(() => {
     if (googleMapInstance !== null) {
@@ -619,6 +652,46 @@ const Map: React.FC<Props> = ({
       console.log("Current zoom level:", zoomLevel);
     }
   }, []);
+
+  // let isDragging = false;
+
+  // const initiateImageDrag = (
+  //   e: React.MouseEvent<HTMLDivElement>,
+  //   id: string
+  // ) => {
+  //   isDragging = true;
+
+  //   const handleMouseMove = (): void => {
+  //     if (!isDragging || !cursorPosition) return;
+
+  //     setImageOverlays((prev) => ({
+  //       ...prev,
+  //       [id]: {
+  //         ...prev[id],
+  //         position: cursorPosition,
+  //       },
+  //     }));
+  //   };
+
+  //   const handleMouseUp = (): void => {
+  //     isDragging = false;
+  //     window.removeEventListener("mousemove", handleMouseMove);
+  //     window.removeEventListener("mouseup", handleMouseUp);
+  //   };
+
+  //   window.addEventListener("mousemove", handleMouseMove);
+  //   window.addEventListener("mouseup", handleMouseUp);
+  // };
+
+  // const finalizeImageDrag = (
+  //   e: React.MouseEvent<HTMLDivElement>,
+  //   id: string
+  // ): void => {
+  //   isDragging = false;
+  //   // Additional logic if needed when the drag operation is finished
+  // };
+
+  console.log(selectedItemId);
 
   return (
     <div className="h-full w-full">
@@ -645,7 +718,7 @@ const Map: React.FC<Props> = ({
                   onDragEnd={(e) => handleDragEnd(e, id)}
                 />
               ))}
-              {/* FREEHAND MARKER------------------------------------ */}
+              {/* FREEHAND Drawing MARKER------------------------------------ */}
               {Object.entries(freehandPaths).map(([id, path]) => (
                 <Polyline
                   key={id}
@@ -673,22 +746,22 @@ const Map: React.FC<Props> = ({
                 <Polyline
                   key={id}
                   path={path}
-                  options={{
-                    strokeWeight: 7,
-                    strokeColor: "#FF0000",
-                    strokeOpacity: 0.8,
-                  }}
+                  // options={{
+                  //   strokeWeight: 7,
+                  //   strokeColor: "#FF0000",
+                  //   strokeOpacity: 0.8,
+                  // }}
                   draggable={true}
                 />
               ))}
               {isDrawingFreehand && (
                 <Polyline
                   path={[...currentFreehandPath, cursorPosition]}
-                  options={{
-                    strokeWeight: 7,
-                    strokeColor: "#00FF00",
-                    strokeOpacity: 0.8,
-                  }}
+                  // options={{
+                  //   strokeWeight: 7,
+                  //   strokeColor: "#00FF00",
+                  //   strokeOpacity: 0.8,
+                  // }}
                 />
               )}
 
@@ -726,6 +799,7 @@ const Map: React.FC<Props> = ({
                 space={space}
                 selfConnectionId={self?.connectionId}
               />
+              {/* Text ---------------------------------------------- */}
               {Object.entries(texts).map(([id, textData]) => (
                 <TextLabel
                   key={id}
@@ -759,6 +833,8 @@ const Map: React.FC<Props> = ({
                         image.size.height * Math.pow(2, currentZoomLevel! - 1)
                       }px`,
                     }}
+                    // onMouseDown={(e) => initiateImageDrag(e, id)}
+                    // onMouseUp={(e) => finalizeImageDrag(e, id)}
                     onMouseDown={(e) => initiateResize(e, id)}
                     onClick={() => setSelectedItemId(id)}
                     className={`border-2 ${
@@ -779,7 +855,6 @@ const Map: React.FC<Props> = ({
                 className="absolute inset-0 w-full h-full z-10  bg-orange-600 opacity-10"
                 style={{ pointerEvents: captureDrop ? "auto" : "none" }}
                 onDrop={(e) => {
-                  console.log("**********onDrop");
                   e.stopPropagation();
                   handleImageDrop(e);
                 }}
