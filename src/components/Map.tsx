@@ -288,6 +288,11 @@ const Map: React.FC<Props> = ({
               position: newPosition,
             },
           }));
+
+          mapChannel.publish("drag-text", {
+            id: selectedItemId,
+            position: newPosition,
+          });
         }
       }
 
@@ -691,7 +696,12 @@ const Map: React.FC<Props> = ({
   //   // Additional logic if needed when the drag operation is finished
   // };
 
-  console.log(selectedItemId);
+  const [center2, setCenter2] = useState({
+    lat: 40.748817, // Initial latitude
+    lng: -73.985428, // Initial longitude
+  });
+
+  console.log(selectedItemId, texts);
 
   return (
     <div className="h-full w-full">
@@ -724,19 +734,18 @@ const Map: React.FC<Props> = ({
                   key={id}
                   path={path}
                   options={{
-                    strokeWeight: 7,
+                    strokeWeight: 5,
                     strokeColor: "#FF0000",
                     strokeOpacity: 0.8,
                   }}
-                  draggable={true}
                 />
               ))}
               {isDrawingFreehand && (
                 <Polyline
                   path={currentFreehandPath}
                   options={{
-                    strokeWeight: 7,
-                    strokeColor: "#00FF00",
+                    strokeWeight: 5,
+                    strokeColor: "#FF0000",
                     strokeOpacity: 0.8,
                   }}
                 />
@@ -746,24 +755,28 @@ const Map: React.FC<Props> = ({
                 <Polyline
                   key={id}
                   path={path}
-                  // options={{
-                  //   strokeWeight: 7,
-                  //   strokeColor: "#FF0000",
-                  //   strokeOpacity: 0.8,
-                  // }}
-                  draggable={true}
+                  options={{
+                    strokeWeight: 4,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 0.8,
+                  }}
+                  onDrag={(e) => {
+                    console.log("on drag polyline");
+                    console.log(e.latLng?.toJSON());
+                  }}
                 />
               ))}
-              {isDrawingFreehand && (
-                <Polyline
-                  path={[...currentFreehandPath, cursorPosition]}
-                  // options={{
-                  //   strokeWeight: 7,
-                  //   strokeColor: "#00FF00",
-                  //   strokeOpacity: 0.8,
-                  // }}
-                />
-              )}
+              {isDrawingFreehand &&
+                currentDrawingMode == DrawingMode.POLYLINE && (
+                  <Polyline
+                    path={[...currentFreehandPath, cursorPosition]}
+                    options={{
+                      strokeWeight: 4,
+                      strokeColor: "#FF0000",
+                      strokeOpacity: 0.8,
+                    }}
+                  />
+                )}
 
               {/* POLYGON--------------------------- */}
               {Object.entries(polygons).map(([id, path]) => (
@@ -771,19 +784,18 @@ const Map: React.FC<Props> = ({
                   key={id}
                   path={path}
                   options={{
-                    strokeWeight: 7,
+                    strokeWeight: 4,
                     strokeColor: "#FF0000",
                     strokeOpacity: 0.8,
                   }}
-                  draggable={true}
                 />
               ))}
               {isDrawingFreehand && currentDrawingMode == "POLYGON" && (
                 <Polygon
                   path={[...currentFreehandPath, cursorPosition]}
                   options={{
-                    strokeWeight: 7,
-                    strokeColor: "#00FF00",
+                    strokeWeight: 4,
+                    strokeColor: "#FF0000",
                     strokeOpacity: 0.8,
                   }}
                 />
@@ -813,6 +825,13 @@ const Map: React.FC<Props> = ({
                       ...texts,
                       [id]: { ...textData, text: newText },
                     });
+
+                    console.log("---textlable");
+
+                    mapChannel.publish("update-text", {
+                      id,
+                      updatedText: newText,
+                    });
                   }}
                 />
               ))}
@@ -833,9 +852,6 @@ const Map: React.FC<Props> = ({
                         image.size.height * Math.pow(2, currentZoomLevel! - 1)
                       }px`,
                     }}
-                    // onMouseDown={(e) => initiateImageDrag(e, id)}
-                    // onMouseUp={(e) => finalizeImageDrag(e, id)}
-                    onMouseDown={(e) => initiateResize(e, id)}
                     onClick={() => setSelectedItemId(id)}
                     className={`border-2 ${
                       selectedItemId == id ? " border-red-500" : ""
@@ -864,6 +880,12 @@ const Map: React.FC<Props> = ({
             <MapActionBar
               currentDrawingMode={currentDrawingMode}
               setCurrentDrawingMode={setCurrentDrawingMode}
+              googleMapInstance={googleMapInstance}
+              mapChannel={mapChannel}
+              currentZoomLevel={currentZoomLevel}
+              setImageOverlays={setImageOverlays}
+              setShowOverlay={setShowOverlay}
+              center={googleMapInstance?.getCenter()?.toJSON()}
             />
           </div>
         </>
@@ -907,16 +929,27 @@ const TextLabel: React.FC<TextLabelProps> = ({
 
   const [inputValue, setInputValue] = useState(text);
 
+  // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   setInputValue(e.target.value);
+  //   onTextChange(inputValue);
+  // };
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    onTextChange(newValue);
   };
 
   const handleInputBlur = () => {
     onTextChange(inputValue);
   };
 
+  useEffect(() => {
+    setInputValue(text);
+  }, [text]);
+
   const calculateFontSize = () => {
-    return zoomLevel + "px";
+    const fontSize = zoomLevel ? zoomLevel + 8 : 16;
+    return fontSize + "px";
   };
 
   // ================---------------------------------------
@@ -940,6 +973,8 @@ const TextLabel: React.FC<TextLabelProps> = ({
     };
   };
 
+  console.log(text);
+
   return (
     <OverlayView
       position={position}
@@ -950,7 +985,7 @@ const TextLabel: React.FC<TextLabelProps> = ({
         type="text"
         value={inputValue}
         onChange={handleInputChange}
-        onBlur={handleInputBlur}
+        // onBlur={handleInputBlur}
         onClick={handleTextClick}
         className="no-select text-white text-lg font-bold w-fit inline-block p-4 whitespace-nowrap z-1000 pointer-events-auto border-none cursor-pointer bg-green-100/0 outline-none select-none"
         style={{

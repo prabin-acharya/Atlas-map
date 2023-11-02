@@ -83,17 +83,16 @@ const useAblySubscription = (
       (message: {
         data: {
           id: string;
-          text: string;
-          position: { lat: number; lng: number };
+          updatedText: string;
         };
         clientId: string;
       }) => {
         if (message.clientId == space?.client.auth.clientId) return;
 
-        const { id, ...updatedText } = message.data;
-        setTexts((prevTexts) => ({
-          ...prevTexts,
-          [id]: updatedText,
+        const { id, updatedText } = message.data;
+        setTexts((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], text: updatedText },
         }));
       }
     );
@@ -103,17 +102,16 @@ const useAblySubscription = (
       (message: {
         data: {
           id: string;
-          text: string;
           position: { lat: number; lng: number };
         };
         clientId: string;
       }) => {
         if (message.clientId == space?.client.auth.clientId) return;
 
-        const { id, ...draggedText } = message.data;
-        setTexts((prevTexts) => ({
-          ...prevTexts,
-          [id]: draggedText,
+        const { id, position } = message.data;
+        setTexts((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], position },
         }));
       }
     );

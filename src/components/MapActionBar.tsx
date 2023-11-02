@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction } from "react";
+import React, { Dispatch, SetStateAction, useRef } from "react";
 import { BiSolidPencil } from "react-icons/bi";
 import { FaMapMarkerAlt } from "react-icons/fa";
 import { PiPolygonFill } from "react-icons/pi";
@@ -10,11 +10,33 @@ import { DrawingMode } from "../types";
 interface Props {
   currentDrawingMode: DrawingMode | null;
   setCurrentDrawingMode: Dispatch<SetStateAction<DrawingMode | null>>;
+  googleMapInstance: google.maps.Map | null;
+  mapChannel: any;
+  currentZoomLevel: number;
+  setImageOverlays: Dispatch<
+    SetStateAction<{
+      [key: string]: ImageOverlay;
+    }>
+  >;
+  setShowOverlay: Dispatch<SetStateAction<boolean>>;
+  center: google.maps.LatLngLiteral | undefined;
 }
+
+type ImageOverlay = {
+  url: string;
+  position: google.maps.LatLngLiteral;
+  size: { width: number; height: number };
+};
 
 const MapActionBar: React.FC<Props> = ({
   currentDrawingMode,
   setCurrentDrawingMode,
+  googleMapInstance,
+  mapChannel,
+  currentZoomLevel,
+  setImageOverlays,
+  setShowOverlay,
+  center,
 }) => {
   const baseStyle = "m-2 bg-blue-100 p-2 rounded";
   const activeStyle = "border-green-800";
@@ -27,6 +49,103 @@ const MapActionBar: React.FC<Props> = ({
     }`;
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      const file = event.target.files[0];
+      // Call your function here, passing the file
+      handleImageDrop(file);
+    }
+  };
+
+  const handleClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  console.log(center, "+");
+
+  const handleImageDrop = (file: File) => {
+    // Extract files
+    const files = [file];
+
+    console.log(files, "----");
+
+    if (files.length > 0) {
+      const file = files[0];
+      const reader = new FileReader();
+
+      reader.readAsDataURL(file);
+      reader.onloadend = function () {
+        // Create blob URL
+        const imageBlobUrl = URL.createObjectURL(file);
+
+        const tempImg = new Image();
+        tempImg.src = imageBlobUrl;
+
+        tempImg.onload = () => {
+          const aspectRatio = tempImg.width / tempImg.height;
+
+          // Retrieve map properties
+          if (googleMapInstance) {
+            const bounds = googleMapInstance.getBounds();
+
+            if (bounds) {
+              const ne = bounds.getNorthEast();
+              const sw = bounds.getSouthWest();
+              const zoom = googleMapInstance.getZoom();
+
+              if (zoom !== null && center) {
+                const id = "image_" + Date.now().toString();
+
+                const currentSize = {
+                  height: 200,
+                  width: 200 * aspectRatio,
+                };
+
+                const baseSize = {
+                  height:
+                    currentSize.height / Math.pow(2, currentZoomLevel! - 1),
+                  width: currentSize.width / Math.pow(2, currentZoomLevel! - 1),
+                };
+
+                setImageOverlays((prev) => ({
+                  ...prev,
+                  [id]: {
+                    url: imageBlobUrl,
+                    position: center,
+                    size: baseSize,
+                  },
+                }));
+
+                mapChannel.publish("new-image", {
+                  [id]: {
+                    position: center,
+                    url: imageBlobUrl,
+                  },
+                });
+              }
+            }
+          }
+        };
+      };
+    }
+    setShowOverlay(false);
+  };
+
+  const calculateBounds = (
+    latLng: google.maps.LatLng
+  ): google.maps.LatLngBoundsLiteral => {
+    const delta = 0.136; // This value can be adjusted based on how large you want the image overlay to be
+    return {
+      north: latLng.lat() + delta,
+      south: latLng.lat() - delta,
+      east: latLng.lng() + delta,
+      west: latLng.lng() - delta,
+    };
+  };
   return (
     <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 p-1 px-2 rounded-md bg-white opacity-85 shadow-lg">
       <button
@@ -92,9 +211,18 @@ const MapActionBar: React.FC<Props> = ({
       </button>
       <button
         className={getButtonStyle(DrawingMode.IMAGE)}
-        onClick={() => setCurrentDrawingMode(DrawingMode.IMAGE)}
+        onClick={() => {
+          setCurrentDrawingMode(DrawingMode.IMAGE);
+          handleClick();
+        }}
       >
         <RiImageFill />
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          onChange={handleFileSelect}
+        />
       </button>
     </div>
   );
