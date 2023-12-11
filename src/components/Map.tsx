@@ -176,13 +176,13 @@ const Map: React.FC<Props> = ({
             const id = `text_${Date.now()}`;
             setTexts({
               ...texts,
-              [id]: { position: coords, text: "default text" },
+              [id]: { position: coords, text: "" },
             });
 
             mapChannel.publish("new-text", {
               [id]: {
                 position: coords,
-                text: "default text",
+                text: "",
               },
             });
             setCurrentDrawingMode(null);
@@ -985,6 +985,7 @@ const TextLabel: React.FC<TextLabelProps> = ({
         type="text"
         value={inputValue}
         onChange={handleInputChange}
+        placeholder="Enter text..."
         // onBlur={handleInputBlur}
         onClick={handleTextClick}
         className="no-select text-white text-lg font-bold w-fit inline-block p-4 whitespace-nowrap z-1000 pointer-events-auto border-none cursor-pointer bg-green-100/0 outline-none select-none"
