@@ -20,6 +20,14 @@ import { DrawingMode } from "../types";
 import { Member } from "../utils/types";
 import { MemberCursors, YourCursor } from "./Cursors";
 import MapActionBar from "./MapActionBar";
+import TextLabel from "./MapElements/TextLabel";
+
+interface Props {
+  currentDrawingMode: DrawingMode | null;
+  setCurrentDrawingMode: Dispatch<SetStateAction<DrawingMode | null>>;
+  space?: Space;
+  selfConnectionId?: string;
+}
 
 type Library = "places" | "geometry" | "visualization" | "drawing";
 const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
@@ -30,12 +38,10 @@ type ImageOverlay = {
   size: { width: number; height: number };
 };
 
-interface Props {
-  currentDrawingMode: DrawingMode | null;
-  setCurrentDrawingMode: Dispatch<SetStateAction<DrawingMode | null>>;
-  space?: Space;
-  selfConnectionId?: string;
-}
+type TextData = {
+  position: google.maps.LatLngLiteral;
+  text: string;
+};
 
 const Map: React.FC<Props> = ({
   currentDrawingMode,
@@ -57,40 +63,6 @@ const Map: React.FC<Props> = ({
   const freehandChannel = client.channels.get("freehand-updates");
 
   const { self, otherMembers } = useSpaceMembers(space);
-
-  const handleDragEnd = (
-    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
-    id: string
-  ) => {
-    const newPosition = e.latLng?.toJSON();
-    if (!newPosition) {
-      console.log("marker not addedddd!!!!");
-      return;
-    }
-    setMarkers((prevMarkers) => {
-      const updatedMarkers = { ...prevMarkers };
-      updatedMarkers[id] = newPosition;
-      return updatedMarkers;
-    });
-    mapChannel.publish("update-marker", { id, ...newPosition });
-  };
-
-  const handleDrag = (
-    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
-    id: string
-  ) => {
-    const newPosition = e.latLng?.toJSON();
-    if (!newPosition) {
-      console.log("marker not addedddd!!!!");
-      return;
-    }
-    setMarkers((prevMarkers) => {
-      const updatedMarkers = { ...prevMarkers };
-      updatedMarkers[id] = newPosition;
-      return updatedMarkers;
-    });
-    mapChannel.publish("drag-marker", { id, ...newPosition });
-  };
 
   const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(10);
   const [cursorPosition, setCursorPosition] = useState<{
@@ -452,17 +424,39 @@ const Map: React.FC<Props> = ({
   //
   //
   //
+  // handle drag markers
+  const handleDragEnd = (
+    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
+    id: string
+  ) => {
+    const newPosition = e.latLng?.toJSON();
+    if (!newPosition) {
+      console.log("marker not addedddd!!!!");
+      return;
+    }
+    setMarkers((prevMarkers) => {
+      const updatedMarkers = { ...prevMarkers };
+      updatedMarkers[id] = newPosition;
+      return updatedMarkers;
+    });
+    mapChannel.publish("update-marker", { id, ...newPosition });
+  };
 
-  const calculateBounds = (
-    latLng: google.maps.LatLng
-  ): google.maps.LatLngBoundsLiteral => {
-    const delta = 0.136; // This value can be adjusted based on how large you want the image overlay to be
-    return {
-      north: latLng.lat() + delta,
-      south: latLng.lat() - delta,
-      east: latLng.lng() + delta,
-      west: latLng.lng() - delta,
-    };
+  const handleDrag = (
+    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
+    id: string
+  ) => {
+    const newPosition = e.latLng?.toJSON();
+    if (!newPosition) {
+      console.log("marker not addedddd!!!!");
+      return;
+    }
+    setMarkers((prevMarkers) => {
+      const updatedMarkers = { ...prevMarkers };
+      updatedMarkers[id] = newPosition;
+      return updatedMarkers;
+    });
+    mapChannel.publish("drag-marker", { id, ...newPosition });
   };
 
   useEffect(() => {
@@ -597,59 +591,6 @@ const Map: React.FC<Props> = ({
     };
   }, []);
 
-  const position = { lat: 37.7749, lng: -122.4194 };
-
-  const initiateResize = (e: React.MouseEvent<HTMLDivElement>, id: string) => {
-    const div = e.currentTarget.getBoundingClientRect();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const edgeThreshold = 5; // You can set this value according to your needs
-
-    // // Calculate distance from the click point to each edge
-    // const distanceToLeft = Math.abs(startX - div.left);
-    // const distanceToRight = Math.abs(startX - div.right);
-    // const distanceToTop = Math.abs(startY - div.top);
-    // const distanceToBottom = Math.abs(startY - div.bottom);
-
-    // // Check if click is within edgeThreshold pixels of any edge
-    // if (
-    //   distanceToLeft < edgeThreshold ||
-    //   distanceToRight < edgeThreshold ||
-    //   distanceToTop < edgeThreshold ||
-    //   distanceToBottom < edgeThreshold
-    // ) {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (googleMapInstance) {
-        googleMapInstance.setOptions({ draggable: false });
-      }
-      const newWidth = imageOverlays[id].size.width + (e.clientX - startX);
-      const newHeight = imageOverlays[id].size.height + (e.clientY - startY);
-
-      const baseWidth = newWidth / Math.pow(2, currentZoomLevel! - 1);
-      const baseHeight = newHeight / Math.pow(2, currentZoomLevel! - 1);
-
-      setImageOverlays((prev) => ({
-        ...prev,
-        [id]: {
-          ...prev[id],
-          size: { width: baseWidth, height: baseHeight },
-        },
-      }));
-    };
-
-    const handleMouseUp = () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      if (googleMapInstance) {
-        googleMapInstance.setOptions({ draggable: true });
-      }
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    // }
-  };
-
   useEffect(() => {
     if (googleMapInstance !== null) {
       const zoomLevel = googleMapInstance.getZoom();
@@ -657,51 +598,6 @@ const Map: React.FC<Props> = ({
       console.log("Current zoom level:", zoomLevel);
     }
   }, []);
-
-  // let isDragging = false;
-
-  // const initiateImageDrag = (
-  //   e: React.MouseEvent<HTMLDivElement>,
-  //   id: string
-  // ) => {
-  //   isDragging = true;
-
-  //   const handleMouseMove = (): void => {
-  //     if (!isDragging || !cursorPosition) return;
-
-  //     setImageOverlays((prev) => ({
-  //       ...prev,
-  //       [id]: {
-  //         ...prev[id],
-  //         position: cursorPosition,
-  //       },
-  //     }));
-  //   };
-
-  //   const handleMouseUp = (): void => {
-  //     isDragging = false;
-  //     window.removeEventListener("mousemove", handleMouseMove);
-  //     window.removeEventListener("mouseup", handleMouseUp);
-  //   };
-
-  //   window.addEventListener("mousemove", handleMouseMove);
-  //   window.addEventListener("mouseup", handleMouseUp);
-  // };
-
-  // const finalizeImageDrag = (
-  //   e: React.MouseEvent<HTMLDivElement>,
-  //   id: string
-  // ): void => {
-  //   isDragging = false;
-  //   // Additional logic if needed when the drag operation is finished
-  // };
-
-  const [center2, setCenter2] = useState({
-    lat: 40.748817, // Initial latitude
-    lng: -73.985428, // Initial longitude
-  });
-
-  console.log(selectedItemId, texts);
 
   return (
     <div className="h-full w-full">
@@ -899,155 +795,14 @@ export default Map;
 // ==========================================================================
 // ==========================================================================
 // ==========================================================================
-
-type TextLabelProps = {
-  id: string;
-  position: google.maps.LatLngLiteral;
-  text: string;
-  zoomLevel: number | null;
-  onTextChange: (newText: string) => void;
-  setSelectedItemId: (id: string | null) => void;
+const calculateBounds = (
+  latLng: google.maps.LatLng
+): google.maps.LatLngBoundsLiteral => {
+  const delta = 0.136; // This value can be adjusted based on how large you want the image overlay to be
+  return {
+    north: latLng.lat() + delta,
+    south: latLng.lat() - delta,
+    east: latLng.lng() + delta,
+    west: latLng.lng() - delta,
+  };
 };
-
-type TextData = {
-  position: google.maps.LatLngLiteral;
-  text: string;
-};
-
-const TextLabel: React.FC<TextLabelProps> = ({
-  id,
-  position,
-  text,
-  zoomLevel,
-  onTextChange,
-  setSelectedItemId,
-}) => {
-  const handleTextClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    e.stopPropagation();
-    e.currentTarget.focus();
-  };
-
-  const [inputValue, setInputValue] = useState(text);
-
-  // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   setInputValue(e.target.value);
-  //   onTextChange(inputValue);
-  // };
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    onTextChange(newValue);
-  };
-
-  const handleInputBlur = () => {
-    onTextChange(inputValue);
-  };
-
-  useEffect(() => {
-    setInputValue(text);
-  }, [text]);
-
-  const calculateFontSize = () => {
-    const fontSize = zoomLevel ? zoomLevel + 8 : 16;
-    return fontSize + "px";
-  };
-
-  // ================---------------------------------------
-
-  const onOverlayLoad = (overlay: google.maps.OverlayView) => {
-    const div = overlay.getPanes()?.overlayMouseTarget as
-      | HTMLElement
-      | null
-      | undefined;
-
-    if (!div) return;
-
-    const handleMouseDown = (e: globalThis.MouseEvent): void => {
-      setSelectedItemId(id);
-    };
-
-    div.addEventListener("mousedown", handleMouseDown);
-
-    return () => {
-      div.removeEventListener("mousedown", handleMouseDown);
-    };
-  };
-
-  console.log(text);
-
-  return (
-    <OverlayView
-      position={position}
-      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-      onLoad={onOverlayLoad}
-    >
-      <input
-        type="text"
-        value={inputValue}
-        onChange={handleInputChange}
-        placeholder="Enter text..."
-        // onBlur={handleInputBlur}
-        onClick={handleTextClick}
-        className="no-select text-white text-lg font-bold w-fit inline-block p-4 whitespace-nowrap z-1000 pointer-events-auto border-none cursor-pointer bg-green-100/0 outline-none select-none"
-        style={{
-          fontSize: calculateFontSize(),
-        }}
-      />
-    </OverlayView>
-  );
-};
-
-// type ImageData = {
-//   position: google.maps.LatLngLiteral;
-//   src: string;
-// };
-
-// interface ImageLabelProps {
-//   position: google.maps.LatLngLiteral;
-//   src: string;
-//   onPositionChange: (newPosition: google.maps.LatLngLiteral) => void;
-// }
-
-// const ImageLabel: React.FC<ImageLabelProps> = ({
-//   position,
-//   src,
-//   onPositionChange,
-// }) => {
-
-//   const handleMouseDown = (
-//     e: React.MouseEvent<HTMLImageElement, MouseEvent>
-//   ) => {
-//     setIsDragging(true);
-//     e.preventDefault();
-//   };
-
-//   const handleMouseMove = (
-//     e: React.MouseEvent<HTMLImageElement, MouseEvent>
-//   ) => {
-//     if (!isDragging) return;
-//     const newPosition = {
-//       lat: position.lat + SOME_DELTA,
-//       lng: position.lng + SOME_DELTA,
-//     };
-//     onPositionChange(newPosition);
-//   };
-
-//   const handleMouseUp = () => {
-//     setIsDragging(false);
-//   };
-
-//   return (
-//     <OverlayView
-//       position={position}
-//       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-//     >
-//       <img
-//         src={src}
-//         draggable={false}
-//         onMouseDown={handleMouseDown}
-//         onMouseMove={handleMouseMove}
-//         onMouseUp={handleMouseUp}
-//       />
-//     </OverlayView>
-//   );
-// };
