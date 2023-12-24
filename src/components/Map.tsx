@@ -74,6 +74,7 @@ const Map: React.FC<Props> = ({
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const [isDrawingFreehand, setIsDrawingFreehand] = useState(false);
+  const [isImageDragging, setIsImageDragging] = useState(false);
 
   const [markers, setMarkers] = useState<
     Record<string, google.maps.LatLngLiteral>
@@ -269,7 +270,11 @@ const Map: React.FC<Props> = ({
       }
 
       // image move
-      if (selectedItemId && selectedItemId.split("_")[0] == "image") {
+      if (
+        isImageDragging &&
+        selectedItemId &&
+        selectedItemId.split("_")[0] == "image"
+      ) {
         const newPosition = e.latLng?.toJSON();
         if (selectedItemId && newPosition) {
           setImageOverlays((prev) => ({
@@ -313,7 +318,7 @@ const Map: React.FC<Props> = ({
     };
 
     const onMouseUpGlobal = () => {
-      console.log("On Mouse UP Global");
+      // console.log("On Mouse UP Global");
       setIsDrawingFreehand(false);
       setSelectedItemId(null);
 
@@ -417,7 +422,7 @@ const Map: React.FC<Props> = ({
     if (googleMapInstance !== null) {
       const zoomLevel = googleMapInstance.getZoom();
       if (zoomLevel) setCurrentZoomLevel(zoomLevel);
-      console.log("Current zoom level:", zoomLevel);
+      // console.log("Current zoom level:", zoomLevel);
     }
   };
 
@@ -747,16 +752,27 @@ const Map: React.FC<Props> = ({
                       height: `${
                         image.size.height * Math.pow(2, currentZoomLevel! - 1)
                       }px`,
+                      border: `${
+                        selectedItemId == id
+                          ? "1px solid blue"
+                          : "1px solid red"
+                      }`,
                     }}
-                    onClick={() => setSelectedItemId(id)}
-                    className={`border-2 ${
-                      selectedItemId == id ? " border-red-500" : ""
-                    }`}
+                    onClick={(e) => {
+                      setSelectedItemId(id);
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.detail == 1) {
+                        setIsImageDragging(true);
+                        setSelectedItemId(id);
+                      }
+                    }}
+                    onMouseMove={(e) => {}}
+                    onMouseUp={() => {
+                      setIsImageDragging(false);
+                    }}
                   >
-                    <img
-                      src={image.url}
-                      className="w-full h-full shadow-lg border"
-                    />
+                    <img src={image.url} className="w-full h-full shadow-lg" />
                   </div>
                 </OverlayView>
               ))}

@@ -65,8 +65,6 @@ const MapActionBar: React.FC<Props> = ({
     }
   };
 
-  console.log(center, "+");
-
   const handleImageDrop = (file: File) => {
     // Extract files
     const files = [file];
