@@ -22,7 +22,7 @@ const SpaceContextProvider = ({
     const spaceName = getSpaceNameFromUrl();
 
     const initSpace = async () => {
-      const spaceInstance = await spaces.get(spaceName, {
+      const spaceInstance = await spaces.get(await spaceName, {
         offlineTimeout: 10_000,
       });
       if (spaceInstance && !space && !ignore) {

@@ -62,6 +62,9 @@ const Map: React.FC<Props> = ({
   const mapChannel = client.channels.get("map-updates");
   const freehandChannel = client.channels.get("freehand-updates");
 
+  const mapId = localStorage.getItem("activeMapId");
+  const userId = localStorage.getItem("userId");
+
   const { self, otherMembers } = useSpaceMembers(space);
 
   const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(10);
@@ -101,22 +104,45 @@ const Map: React.FC<Props> = ({
     [key: string]: ImageOverlay;
   }>({});
 
+  const fetchMapElements = async () => {
+    const response = await fetch(
+      `https://atlas-map-express-api.up.railway.app//elements?mapId=${mapId}`
+    );
+    const data = await response.json();
+
+    const savedElements = data.elements;
+
+    savedElements.forEach((element: any) => {
+      if (element.name == "marker") {
+        const id = element.id;
+        const position = element.position;
+        setMarkers((prev) => ({ ...prev, [id]: position }));
+      }
+    });
+
+    console.log(data, "---*****");
+  };
+
+  useEffect(() => {
+    fetchMapElements();
+  }, []);
+
   //
   //
   //
   //
 
-  useAblySubscription(
-    mapChannel,
-    freehandChannel,
-    setMarkers,
-    setPolylines,
-    setTexts,
-    setFreehandPaths,
-    setPolygons,
-    setImageOverlays,
-    space
-  );
+  // useAblySubscription(
+  //   mapChannel,
+  //   freehandChannel,
+  //   setMarkers,
+  //   setPolylines,
+  //   setTexts,
+  //   setFreehandPaths,
+  //   setPolygons,
+  //   setImageOverlays,
+  //   space
+  // );
 
   useEffect(() => {
     let mousedownListener: google.maps.MapsEventListener | null = null;
@@ -124,7 +150,7 @@ const Map: React.FC<Props> = ({
     let mouseupListener: google.maps.MapsEventListener | null = null;
     let clickListener: google.maps.MapsEventListener | null = null;
 
-    const onClick = (e: google.maps.MapMouseEvent) => {
+    const onClick = async (e: google.maps.MapMouseEvent) => {
       const newPoint = e.latLng!.toJSON();
       const lastPoint = currentFreehandPath[currentFreehandPath.length - 1];
       const firstPoint = currentFreehandPath[0];
@@ -141,6 +167,35 @@ const Map: React.FC<Props> = ({
               id,
               ...newMarker,
             });
+
+            setCurrentDrawingMode(null);
+
+            try {
+              const response = await fetch(
+                "https://atlas-map-express-api.up.railway.app//add-element",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    mapId,
+                    userId,
+                    element: {
+                      name: "marker",
+                      id,
+                      position: latLng.toJSON(),
+                    },
+                  }),
+                }
+              );
+
+              const data = await response.json();
+
+              console.log(data, "$$$");
+            } catch (err) {
+              console.log(err);
+            }
           }
           break;
         case "TEXT":
@@ -320,7 +375,8 @@ const Map: React.FC<Props> = ({
     const onMouseUpGlobal = () => {
       // console.log("On Mouse UP Global");
       setIsDrawingFreehand(false);
-      setSelectedItemId(null);
+      // console.log("danger!!!!");
+      // setSelectedItemId(null);
 
       if (googleMapInstance) {
         googleMapInstance.setOptions({ draggable: true });
@@ -483,8 +539,6 @@ const Map: React.FC<Props> = ({
     // Extract files
     const files = e.dataTransfer.files;
 
-    console.log(files, "----");
-
     if (files.length > 0) {
       const file = files[0];
       const reader = new FileReader();
@@ -629,6 +683,7 @@ const Map: React.FC<Props> = ({
                   onDragEnd={(e) => handleDragEnd(e, id)}
                 />
               ))}
+
               {/* FREEHAND Drawing MARKER------------------------------------ */}
               {Object.entries(freehandPaths).map(([id, path]) => (
                 <Polyline

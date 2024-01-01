@@ -15,7 +15,33 @@ export const colours = [
   { nameColor: "bg-yellow-500", cursorColor: "#FFC700" },
 ];
 
-export const getSpaceNameFromUrl = () => {
+const createMapAndGetID = async () => {
+  console.log("here--createMapId");
+  try {
+    const userId = localStorage.getItem("userId");
+    const response = await fetch(
+      "https://atlas-map-express-api.up.railway.app//newMap",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
+      }
+    );
+
+    const data = await response.json();
+
+    localStorage.setItem("activeMapId", data.mapId);
+
+    return data.mapId;
+  } catch (error) {
+    console.error("Error creating map:", error);
+    throw error; // Re-throw the error to propagate it up if needed
+  }
+};
+
+export const getSpaceNameFromUrl = async () => {
   const url = new URL(window.location.href);
   const spaceNameInParams = url.searchParams.get("space");
 
@@ -23,7 +49,11 @@ export const getSpaceNameFromUrl = () => {
     return spaceNameInParams;
   } else {
     const generatedName = generate({ exactly: 3, join: "-" });
-    url.searchParams.set("space", generatedName);
+    const savedMapId = localStorage.getItem("activeMapId");
+
+    const mapId = savedMapId ? savedMapId : await createMapAndGetID();
+    // url.searchParams.set("space", generatedName);
+    url.searchParams.set("space", mapId);
     window.history.replaceState({}, "", `?${url.searchParams.toString()}`);
     return generatedName;
   }

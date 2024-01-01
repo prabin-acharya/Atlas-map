@@ -20,7 +20,6 @@ const LiveCursors = () => {
   const space = useContext(SpacesContext);
 
   useEffect(() => {
-    console.log(userColors, "_________*****************************8");
     const memeberColor = userColors["nameColor"];
     space?.enter({ name, userColors });
   }, [space]);
@@ -31,11 +30,6 @@ const LiveCursors = () => {
 
   const [currentDrawingMode, setCurrentDrawingMode] =
     useState<DrawingMode | null>(null);
-
-  console.log(
-    space,
-    "________+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-  );
 
   const [linkCopied, setLinkCopied] = useState(false);
   const handleButtonClick = async () => {
