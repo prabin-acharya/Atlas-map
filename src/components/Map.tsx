@@ -123,9 +123,9 @@ const Map: React.FC<Props> = ({
     console.log(data, "---*****");
   };
 
-  useEffect(() => {
-    fetchMapElements();
-  }, []);
+  // useEffect(() => {
+  //   fetchMapElements();
+  // }, []);
 
   //
   //
@@ -170,32 +170,32 @@ const Map: React.FC<Props> = ({
 
             setCurrentDrawingMode(null);
 
-            try {
-              const response = await fetch(
-                "https://atlas-map-express-api.up.railway.app//add-element",
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    mapId,
-                    userId,
-                    element: {
-                      name: "marker",
-                      id,
-                      position: latLng.toJSON(),
-                    },
-                  }),
-                }
-              );
+            // try {
+            //   const response = await fetch(
+            //     "https://atlas-map-express-api.up.railway.app//add-element",
+            //     {
+            //       method: "POST",
+            //       headers: {
+            //         "Content-Type": "application/json",
+            //       },
+            //       body: JSON.stringify({
+            //         mapId,
+            //         userId,
+            //         element: {
+            //           name: "marker",
+            //           id,
+            //           position: latLng.toJSON(),
+            //         },
+            //       }),
+            //     }
+            //   );
 
-              const data = await response.json();
+            //   const data = await response.json();
 
-              console.log(data, "$$$");
-            } catch (err) {
-              console.log(err);
-            }
+            //   console.log(data, "$$$");
+            // } catch (err) {
+            //   console.log(err);
+            // }
           }
           break;
         case "TEXT":
@@ -658,6 +658,74 @@ const Map: React.FC<Props> = ({
     }
   }, []);
 
+  const [showElementRightClickMenu, setShowElementRightClickMenu] =
+    useState(false);
+
+  const [rightClickPosition, setRightClickedPosition] =
+    useState<google.maps.LatLngLiteral>();
+
+  const handleRightClickElement = (
+    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
+    id: string
+  ) => {
+    const rightClickedPosition = e?.latLng?.toJSON();
+    rightClickedPosition && setRightClickedPosition(rightClickedPosition);
+    console.log("right click");
+    setShowElementRightClickMenu(true);
+    setSelectedItemId(id);
+  };
+
+  const handleMapClick = (
+    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent
+  ) => {
+    currentDrawingMode == null && setSelectedItemId(null);
+  };
+
+  const deleteElement = (id: string) => {
+    console.log(id);
+
+    const element = id.split("_")[0];
+
+    switch (element) {
+      case "marker":
+        setMarkers((prevMarkers) => {
+          const newMarkers = { ...prevMarkers };
+          delete newMarkers[id];
+          console.log(newMarkers);
+          return newMarkers;
+        });
+        break;
+
+      case "freehand":
+        setFreehandPaths((prev) => {
+          const newFreehands = { ...prev };
+          delete newFreehands[id];
+          return newFreehands;
+        });
+        break;
+
+      case "polyline":
+        console.log("cased polyline");
+
+        setPolylines((prev) => {
+          const newPolylines = { ...prev };
+          delete newPolylines[id];
+          return newPolylines;
+        });
+        break;
+
+      case "polygon":
+        setPolygons((prev) => {
+          const newPolylines = { ...prev };
+          delete newPolylines[id];
+          return newPolylines;
+        });
+        break;
+    }
+
+    setSelectedItemId(null);
+  };
+
   return (
     <div className="h-full w-full">
       {!isLoaded ? (
@@ -673,7 +741,30 @@ const Map: React.FC<Props> = ({
               onZoomChanged={handleZoomChanged}
               onMouseOut={(e) => handleCursorLeave(e)}
               onMouseMove={(e) => handleCursorMove(e)}
+              onClick={(e) => {
+                handleMapClick(e);
+              }}
             >
+              {/* Element Right Click Menu */}
+              {showElementRightClickMenu && selectedItemId && (
+                <>
+                  <OverlayView
+                    key={selectedItemId}
+                    position={rightClickPosition}
+                    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                  >
+                    <div className="flex py-2 bg-white text-black w-32 font-medium rounded-md shadow-md text-base">
+                      <span
+                        className=" w-full px-2 py-1  hover:bg-orange-200 cursor-pointer"
+                        onClick={() => deleteElement(selectedItemId)}
+                      >
+                        Delete
+                      </span>
+                    </div>
+                  </OverlayView>
+                </>
+              )}
+
               {Object.entries(markers).map(([id, position]) => (
                 <Marker
                   key={id}
@@ -681,6 +772,7 @@ const Map: React.FC<Props> = ({
                   draggable={true}
                   onDrag={(e) => handleDrag(e, id)}
                   onDragEnd={(e) => handleDragEnd(e, id)}
+                  onRightClick={(e) => handleRightClickElement(e, id)}
                 />
               ))}
 
@@ -694,6 +786,7 @@ const Map: React.FC<Props> = ({
                     strokeColor: "#FF0000",
                     strokeOpacity: 0.8,
                   }}
+                  onRightClick={(e) => handleRightClickElement(e, id)}
                 />
               ))}
               {isDrawingFreehand && (
@@ -720,6 +813,7 @@ const Map: React.FC<Props> = ({
                     console.log("on drag polyline");
                     console.log(e.latLng?.toJSON());
                   }}
+                  onRightClick={(e) => handleRightClickElement(e, id)}
                 />
               ))}
               {isDrawingFreehand &&
@@ -744,6 +838,7 @@ const Map: React.FC<Props> = ({
                     strokeColor: "#FF0000",
                     strokeOpacity: 0.8,
                   }}
+                  onRightClick={(e) => handleRightClickElement(e, id)}
                 />
               ))}
               {isDrawingFreehand && currentDrawingMode == "POLYGON" && (

@@ -27,3 +27,4 @@ dist-ssr
 
 
 src/hooks/useMapInteractions.ts
+src/components/Map2.tsx
