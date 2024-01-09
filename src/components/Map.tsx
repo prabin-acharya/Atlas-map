@@ -34,12 +34,12 @@ const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
 
 type ImageOverlay = {
   url: string;
-  position: google.maps.LatLngLiteral;
+  coords: google.maps.LatLngLiteral;
   size: { width: number; height: number };
 };
 
 type TextData = {
-  position: google.maps.LatLngLiteral;
+  coords: google.maps.LatLngLiteral;
   text: string;
 };
 
@@ -105,44 +105,103 @@ const Map: React.FC<Props> = ({
   }>({});
 
   const fetchMapElements = async () => {
+    console.log("fetch here", mapId);
     const response = await fetch(
-      `https://atlas-map-express-api.up.railway.app//elements?mapId=${mapId}`
+      // `https://atlas-map-express-api.up.railway.app/elements?mapId=${mapId}`
+      `https://atlas-map-express-api.up.railway.app/elements?mapId=${mapId}`
     );
     const data = await response.json();
 
     const savedElements = data.elements;
+    console.log("saved Elements", savedElements);
 
     savedElements.forEach((element: any) => {
-      if (element.name == "marker") {
-        const id = element.id;
-        const position = element.position;
-        setMarkers((prev) => ({ ...prev, [id]: position }));
+      const elementType = element.elementType;
+      switch (elementType) {
+        case "marker":
+          setMarkers((prev) => ({ ...prev, [element.id]: element.coords }));
+          break;
+        case "freehand":
+          setFreehandPaths((prev) => ({
+            ...prev,
+            [element.id]: element.coords,
+          }));
+          break;
+        case "polyline":
+          setPolylines((prev) => ({
+            ...prev,
+            [element.id]: element.coords,
+          }));
+          break;
+        case "polygon":
+          setPolygons((prev) => ({
+            ...prev,
+            [element.id]: element.coords,
+          }));
+          break;
+
+        case "text":
+          setTexts((prev) => ({
+            ...prev,
+            [element.id]: { text: element.text, coords: element.coords },
+          }));
+          break;
+
+        default:
+          break;
       }
     });
 
     console.log(data, "---*****");
   };
 
-  // useEffect(() => {
-  //   fetchMapElements();
-  // }, []);
+  useEffect(() => {
+    fetchMapElements();
+  }, []);
 
   //
   //
   //
   //
 
-  // useAblySubscription(
-  //   mapChannel,
-  //   freehandChannel,
-  //   setMarkers,
-  //   setPolylines,
-  //   setTexts,
-  //   setFreehandPaths,
-  //   setPolygons,
-  //   setImageOverlays,
-  //   space
-  // );
+  useAblySubscription(
+    mapChannel,
+    freehandChannel,
+    setMarkers,
+    setPolylines,
+    setTexts,
+    setFreehandPaths,
+    setPolygons,
+    setImageOverlays,
+    space
+  );
+  const saveElementToDB = async (id: string, coords: any) => {
+    try {
+      const response = await fetch(
+        "https://atlas-map-express-api.up.railway.app/add-element",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            mapId,
+            userId,
+            element: {
+              elementType: id.split("_")[0],
+              id,
+              coords,
+            },
+          }),
+        }
+      );
+
+      const data = await response.json();
+      console.log(data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   useEffect(() => {
     let mousedownListener: google.maps.MapsEventListener | null = null;
@@ -160,6 +219,7 @@ const Map: React.FC<Props> = ({
           const latLng = e.latLng;
           if (latLng !== null) {
             const id = "marker_" + Date.now().toString();
+
             setMarkers((prev) => ({ ...prev, [id]: latLng.toJSON() }));
 
             const newMarker = latLng.toJSON();
@@ -167,35 +227,11 @@ const Map: React.FC<Props> = ({
               id,
               ...newMarker,
             });
+            const coords = latLng.toJSON();
+
+            await saveElementToDB(id, coords);
 
             setCurrentDrawingMode(null);
-
-            // try {
-            //   const response = await fetch(
-            //     "https://atlas-map-express-api.up.railway.app//add-element",
-            //     {
-            //       method: "POST",
-            //       headers: {
-            //         "Content-Type": "application/json",
-            //       },
-            //       body: JSON.stringify({
-            //         mapId,
-            //         userId,
-            //         element: {
-            //           name: "marker",
-            //           id,
-            //           position: latLng.toJSON(),
-            //         },
-            //       }),
-            //     }
-            //   );
-
-            //   const data = await response.json();
-
-            //   console.log(data, "$$$");
-            // } catch (err) {
-            //   console.log(err);
-            // }
           }
           break;
         case "TEXT":
@@ -204,15 +240,18 @@ const Map: React.FC<Props> = ({
             const id = `text_${Date.now()}`;
             setTexts({
               ...texts,
-              [id]: { position: coords, text: "" },
+              [id]: { coords, text: "" },
             });
 
             mapChannel.publish("new-text", {
               [id]: {
-                position: coords,
+                coords,
                 text: "",
               },
             });
+
+            // await saveElementToDB(id, coords);
+
             setCurrentDrawingMode(null);
           }
           break;
@@ -243,6 +282,9 @@ const Map: React.FC<Props> = ({
               mapChannel.publish("new-polyline", {
                 [id]: currentFreehandPath,
               });
+              const coords = currentFreehandPath;
+
+              await saveElementToDB(id, coords);
             }
           }
           break;
@@ -277,6 +319,8 @@ const Map: React.FC<Props> = ({
               mapChannel.publish("new-polygon", {
                 [id]: currentFreehandPath,
               });
+
+              await saveElementToDB(id, currentFreehandPath);
             }
           }
 
@@ -304,23 +348,49 @@ const Map: React.FC<Props> = ({
       }
     };
 
-    const onMouseMove = (e: google.maps.MapMouseEvent) => {
+    const onMouseMove = async (e: google.maps.MapMouseEvent) => {
       // text move -- here need to
       if (selectedItemId && selectedItemId.split("_")[0] == "text") {
-        const newPosition = e.latLng?.toJSON();
-        if (selectedItemId && newPosition) {
+        const newCoords = e.latLng?.toJSON();
+        if (selectedItemId && newCoords) {
           setTexts((prevTexts) => ({
             ...prevTexts,
             [selectedItemId]: {
               ...prevTexts[selectedItemId],
-              position: newPosition,
+              coords: newCoords,
             },
           }));
 
           mapChannel.publish("drag-text", {
             id: selectedItemId,
-            position: newPosition,
+            coords: newCoords,
           });
+
+          try {
+            const response = await fetch(
+              "https://atlas-map-express-api.up.railway.app/text",
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  userId,
+                  mapId: mapId,
+                  element: {
+                    id: selectedItemId,
+                    coords: newCoords,
+                    text: texts[selectedItemId].text || "",
+                  },
+                }),
+              }
+            );
+            const data = await response.json();
+
+            console.log(data, "###@@");
+          } catch (err) {
+            console.log(err);
+          }
         }
       }
 
@@ -330,13 +400,13 @@ const Map: React.FC<Props> = ({
         selectedItemId &&
         selectedItemId.split("_")[0] == "image"
       ) {
-        const newPosition = e.latLng?.toJSON();
-        if (selectedItemId && newPosition) {
+        const newCoords = e.latLng?.toJSON();
+        if (selectedItemId && newCoords) {
           setImageOverlays((prev) => ({
             ...prev,
             [selectedItemId]: {
               ...prev[selectedItemId],
-              position: newPosition,
+              coords: newCoords,
             },
           }));
         }
@@ -351,13 +421,13 @@ const Map: React.FC<Props> = ({
         case "TEXT":
         // console.log("here!");
         // if (selectedItemId) {
-        //   const newPosition = e.latLng?.toJSON();
-        //   if (selectedItemId && newPosition) {
+        //   const newCoords = e.latLng?.toJSON();
+        //   if (selectedItemId && noewCoords) {
         //     setTexts((prevTexts) => ({
         //       ...prevTexts,
         //       [selectedItemId]: {
         //         ...prevTexts[selectedItemId],
-        //         position: newPosition,
+        //         coords: newCoords,
         //       },
         //     }));
         //   }
@@ -372,11 +442,11 @@ const Map: React.FC<Props> = ({
       //
     };
 
-    const onMouseUpGlobal = () => {
-      // console.log("On Mouse UP Global");
+    const onMouseUpGlobal = async () => {
       setIsDrawingFreehand(false);
-      // console.log("danger!!!!");
-      // setSelectedItemId(null);
+      console.log(selectedItemId, "--**&&");
+      const selectedElement = selectedItemId?.split("_")[0];
+      selectedElement == "text" && setSelectedItemId(null);
 
       if (googleMapInstance) {
         googleMapInstance.setOptions({ draggable: true });
@@ -390,6 +460,8 @@ const Map: React.FC<Props> = ({
           mapChannel.publish("new-freehand", {
             [id]: currentFreehandPath,
           });
+
+          await saveElementToDB(id, currentFreehandPath);
           setCurrentFreehandPath([]);
 
           if (googleMapInstance) {
@@ -432,6 +504,23 @@ const Map: React.FC<Props> = ({
     selectedItemId,
     currentDrawingMode,
   ]);
+
+  const deleteFromDB = async (elementId: string) => {
+    try {
+      const response = await fetch(
+        `https://atlas-map-express-api.up.railway.app/delete-element?elementId=${elementId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const data = await response.json();
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   const handleCursorMove = (e: google.maps.MapMouseEvent) => {
     setCursorPosition({
@@ -486,7 +575,7 @@ const Map: React.FC<Props> = ({
   //
   //
   // handle drag markers
-  const handleDragEnd = (
+  const handleDragEnd = async (
     e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
     id: string
   ) => {
@@ -501,6 +590,30 @@ const Map: React.FC<Props> = ({
       return updatedMarkers;
     });
     mapChannel.publish("update-marker", { id, ...newPosition });
+
+    try {
+      const response = await fetch(
+        "https://atlas-map-express-api.up.railway.app/update-element",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId,
+            element: {
+              id,
+              coords: newPosition,
+            },
+          }),
+        }
+      );
+      const data = await response.json();
+
+      console.log(data, "###@@");
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   const handleDrag = (
@@ -601,15 +714,16 @@ const Map: React.FC<Props> = ({
                   ...prev,
                   [id]: {
                     url: imageBlobUrl,
-                    position: centerPosition,
+                    coords: centerPosition,
                     size: baseSize,
                   },
                 }));
 
                 mapChannel.publish("new-image", {
                   [id]: {
-                    position: centerPosition,
+                    coords: centerPosition,
                     url: imageBlobUrl,
+                    size: baseSize,
                   },
                 });
               }
@@ -679,9 +793,10 @@ const Map: React.FC<Props> = ({
     e: google.maps.MapMouseEvent | google.maps.IconMouseEvent
   ) => {
     currentDrawingMode == null && setSelectedItemId(null);
+    setShowElementRightClickMenu(false);
   };
 
-  const deleteElement = (id: string) => {
+  const deleteElement = async (id: string) => {
     console.log(id);
 
     const element = id.split("_")[0];
@@ -691,9 +806,11 @@ const Map: React.FC<Props> = ({
         setMarkers((prevMarkers) => {
           const newMarkers = { ...prevMarkers };
           delete newMarkers[id];
-          console.log(newMarkers);
           return newMarkers;
         });
+
+        await deleteFromDB(id);
+
         break;
 
       case "freehand":
@@ -702,6 +819,8 @@ const Map: React.FC<Props> = ({
           delete newFreehands[id];
           return newFreehands;
         });
+
+        await deleteFromDB(id);
         break;
 
       case "polyline":
@@ -712,6 +831,8 @@ const Map: React.FC<Props> = ({
           delete newPolylines[id];
           return newPolylines;
         });
+
+        await deleteFromDB(id);
         break;
 
       case "polygon":
@@ -720,6 +841,8 @@ const Map: React.FC<Props> = ({
           delete newPolylines[id];
           return newPolylines;
         });
+        await deleteFromDB(id);
+
         break;
     }
 
@@ -765,10 +888,10 @@ const Map: React.FC<Props> = ({
                 </>
               )}
 
-              {Object.entries(markers).map(([id, position]) => (
+              {Object.entries(markers).map(([id, coords]) => (
                 <Marker
                   key={id}
-                  position={position}
+                  position={coords}
                   draggable={true}
                   onDrag={(e) => handleDrag(e, id)}
                   onDragEnd={(e) => handleDragEnd(e, id)}
@@ -867,11 +990,11 @@ const Map: React.FC<Props> = ({
                 <TextLabel
                   key={id}
                   id={id}
-                  position={textData.position}
+                  position={textData.coords}
                   text={textData.text}
                   zoomLevel={currentZoomLevel}
                   setSelectedItemId={setSelectedItemId}
-                  onTextChange={(newText) => {
+                  onTextChange={async (newText) => {
                     setTexts({
                       ...texts,
                       [id]: { ...textData, text: newText },
@@ -883,6 +1006,30 @@ const Map: React.FC<Props> = ({
                       id,
                       updatedText: newText,
                     });
+
+                    try {
+                      const response = await fetch(
+                        "https://atlas-map-express-api.up.railway.app/text",
+                        {
+                          method: "PUT",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            userId,
+                            mapId: mapId,
+                            element: {
+                              id,
+                              coords: textData.coords,
+                              text: newText,
+                            },
+                          }),
+                        }
+                      );
+                      const data = await response.json();
+                    } catch (err) {
+                      console.log(err);
+                    }
                   }}
                 />
               ))}
@@ -891,7 +1038,7 @@ const Map: React.FC<Props> = ({
               {Object.entries(imageOverlays).map(([id, image]) => (
                 <OverlayView
                   key={id}
-                  position={image.position}
+                  position={image.coords}
                   mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
                 >
                   <div

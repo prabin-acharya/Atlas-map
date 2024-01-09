@@ -46,6 +46,7 @@ export const getSpaceNameFromUrl = async () => {
   const spaceNameInParams = url.searchParams.get("space");
 
   if (spaceNameInParams) {
+    localStorage.setItem("activeMapId", spaceNameInParams);
     return spaceNameInParams;
   } else {
     const generatedName = generate({ exactly: 3, join: "-" });

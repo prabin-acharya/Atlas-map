@@ -91,6 +91,7 @@ const MemberCursors = ({
         const { cursorColor, nameColor } = profileData.userColors;
         return (
           <OverlayView
+            key={connectionId}
             position={{
               lat: positions[connectionId].position.x,
               lng: positions[connectionId].position.y,

@@ -24,7 +24,7 @@ interface Props {
 
 type ImageOverlay = {
   url: string;
-  position: google.maps.LatLngLiteral;
+  coords: google.maps.LatLngLiteral;
   size: { width: number; height: number };
 };
 
@@ -113,7 +113,7 @@ const MapActionBar: React.FC<Props> = ({
                   ...prev,
                   [id]: {
                     url: imageBlobUrl,
-                    position: center,
+                    coords: center,
                     size: baseSize,
                   },
                 }));

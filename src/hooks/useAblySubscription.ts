@@ -2,13 +2,13 @@ import { Space } from "@ably/spaces";
 import { useEffect } from "react";
 
 type TextData = {
-  position: google.maps.LatLngLiteral;
+  coords: google.maps.LatLngLiteral;
   text: string;
 };
 
 type ImageOverlay = {
   url: string;
-  position: google.maps.LatLngLiteral;
+  coords: google.maps.LatLngLiteral;
   size: { width: number; height: number };
 };
 
@@ -165,16 +165,16 @@ const useAblySubscription = (
       "new-text",
       (message: {
         data: {
-          [key: string]: { text: string; position: google.maps.LatLngLiteral };
+          [key: string]: { text: string; coords: google.maps.LatLngLiteral };
         };
         clientId: string;
       }) => {
         if (message.clientId == space?.client.auth.clientId) return;
 
         const id = Object.keys(message.data)[0];
-        const { position, text } = message.data[id];
+        const { coords, text } = message.data[id];
 
-        setTexts((prev) => ({ ...prev, [id]: { position, text } }));
+        setTexts((prev) => ({ ...prev, [id]: { coords, text } }));
       }
     );
 
@@ -184,7 +184,7 @@ const useAblySubscription = (
         data: {
           [key: string]: {
             url: string;
-            position: google.maps.LatLngLiteral;
+            coords: google.maps.LatLngLiteral;
             size: { width: number; height: number };
           };
         };
@@ -193,14 +193,14 @@ const useAblySubscription = (
         if (message.clientId == space?.client.auth.clientId) return;
 
         const id = Object.keys(message.data)[0];
-        const { url, position, size } = message.data[id];
+        const { url, coords, size } = message.data[id];
+
+        console.log(url, coords, size);
 
         setImageOverlays((prev) => ({
           ...prev,
-          [id]: { url, position, size },
+          [id]: { url, coords, size },
         }));
-
-        console.log("here-----------------!");
       }
     );
 
@@ -214,6 +214,7 @@ const useAblySubscription = (
       newPolylineSubscription.unsubscribe();
       newFreehnadSubscription.unsubscribe();
       newPolygonSubscription.unsubscribe();
+      newImageSubscription.unsubscribe();
     };
   }, [mapChannel, space]);
 };

@@ -15,7 +15,7 @@ const App = () => {
   const getUserID = async () => {
     try {
       const response = await fetch(
-        "https://atlas-map-express-api.up.railway.app//newUser"
+        "https://atlas-map-express-api.up.railway.app/newUser"
       );
       const data = await response.json();
 
