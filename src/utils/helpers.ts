@@ -20,7 +20,7 @@ const createMapAndGetID = async () => {
   try {
     const userId = localStorage.getItem("userId");
     const response = await fetch(
-      "https://atlas-map-express-api.up.railway.app//newMap",
+      "https://atlas-map-express-api.up.railway.app/newMap",
       {
         method: "POST",
         headers: {
