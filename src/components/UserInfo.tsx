@@ -1,9 +1,12 @@
 import classNames from "classnames";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { FunctionComponent } from "react";
+import { FunctionComponent, useContext, useState } from "react";
+import { IoCheckmarkSharp } from "react-icons/io5";
+import { MdOutlineModeEdit } from "react-icons/md";
 
 import { type Member } from "../utils/helpers";
+import { SpacesContext } from "./SpacesContext";
 
 dayjs.extend(relativeTime);
 
@@ -48,17 +51,54 @@ const UserInfo: FunctionComponent<{ user: Member; isSelf?: boolean }> = ({
     ? `${user.profileData.name} (You)`
     : user.profileData.name;
 
-  console.log("___________^^^^^^^^^^^^^^^^^^^66");
+  const space = useContext(SpacesContext);
+
+  const handleClick = async () => {
+    await space?.updateProfileData((currentProfile) => {
+      console.log(currentProfile);
+      return { ...currentProfile, name: inputName };
+    });
+    setIsEditingName(false);
+  };
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [inputName, setInputName] = useState(user.profileData.name);
 
   return (
-    <div className="flex justify-start items-center">
+    <div className="flex justify-start items-center p-3">
       <div className={containerCSS} id="avatar">
         <p className={initialsCSS}>{initials}</p>
       </div>
 
       {/* 💡 Display the name of the user from the `profileData` object 💡 */}
       <div id="user-list" className="pl-3 w-full">
-        <p className="font-semibold text-sm">{name}</p>
+        <div className="flex items-center justify-between">
+          {isEditingName ? (
+            <>
+              <input
+                value={inputName}
+                onChange={(e) => setInputName(e.target.value)}
+                autoFocus
+                className="bg-black text-white text-sm outline-none w-32 font-semibold  rounded-md p-1 "
+              />
+              <IoCheckmarkSharp
+                className="cursor-pointer"
+                onClick={handleClick}
+              />
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-sm w-fit">{name}</p>
+              {isSelf && (
+                <MdOutlineModeEdit
+                  className=" cursor-pointer"
+                  onClick={() => setIsEditingName(true)}
+                />
+              )}
+            </>
+          )}
+        </div>
+
         <div className="flex items-center justify-start">
           <div className={statusIndicatorCSS} />
           <p className="font-medium text-xs">{statusIndicatorText}</p>
