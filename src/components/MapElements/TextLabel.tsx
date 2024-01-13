@@ -65,7 +65,7 @@ const TextLabel: React.FC<TextLabelProps> = ({
     };
   };
 
-  console.log(text);
+  // console.log(text);
 
   return (
     <OverlayView

@@ -19,16 +19,13 @@ const createMapAndGetID = async () => {
   console.log("here--createMapId");
   try {
     const userId = localStorage.getItem("userId");
-    const response = await fetch(
-      "https://atlas-map-express-api.up.railway.app/newMap",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId }),
-      }
-    );
+    const response = await fetch("http://localhost:5000/newMap", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ userId }),
+    });
 
     const data = await response.json();
 
@@ -46,7 +43,32 @@ export const getSpaceNameFromUrl = async () => {
   const spaceNameInParams = url.searchParams.get("space");
 
   if (spaceNameInParams) {
-    localStorage.setItem("activeMapId", spaceNameInParams);
+    const mapId = spaceNameInParams;
+    const userId = localStorage.getItem("userId");
+
+    localStorage.setItem("activeMapId", mapId);
+
+    try {
+      const response = await fetch(
+        `https://atlas-map-express-api.up.railway.app/addCollaborators?mapId=${mapId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId }),
+        }
+      );
+
+      if (response.ok) {
+        console.log("Successfully added!");
+      } else {
+        console.log(response);
+        console.error("Error:", response.status);
+      }
+    } catch (error) {
+      console.error("Request failed:");
+    }
     return spaceNameInParams;
   } else {
     const generatedName = generate({ exactly: 3, join: "-" });
