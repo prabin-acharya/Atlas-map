@@ -19,13 +19,17 @@ const createMapAndGetID = async () => {
   console.log("here--createMapId");
   try {
     const userId = localStorage.getItem("userId");
-    const response = await fetch("http://localhost:5000/newMap", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ userId }),
-    });
+    console.log(userId);
+    const response = await fetch(
+      "https://atlas-map-express-api.up.railway.app/newMap",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
+      }
+    );
 
     const data = await response.json();
 
@@ -50,13 +54,16 @@ export const getSpaceNameFromUrl = async () => {
 
     try {
       const response = await fetch(
-        `https://atlas-map-express-api.up.railway.app/addCollaborators?mapId=${mapId}`,
+        `https://atlas-map-express-api.up.railway.app/addCollaborators`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({
+            mapId,
+            userId,
+          }),
         }
       );
 

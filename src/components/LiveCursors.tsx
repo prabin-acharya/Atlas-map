@@ -28,11 +28,13 @@ const LiveCursors = () => {
 
   const space = useContext(SpacesContext);
 
+  const userId = localStorage.getItem("userId");
+
   useEffect(() => {
     const memeberColor = userColors["nameColor"];
     space?.enter({ name, userColors });
 
-    fetchAllMaps();
+    userId && fetchAllMaps();
   }, [space]);
 
   const { self, otherMembers } = useSpaceMembers(space);
@@ -75,13 +77,16 @@ const LiveCursors = () => {
 
     try {
       const response = await fetch(
-        `https://atlas-map-express-api.up.railway.app/updateMapTitle?mapId=${mapId}`,
+        `https://atlas-map-express-api.up.railway.app/updateMapTitle`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ updatedTitle: mapTitle }),
+          body: JSON.stringify({
+            mapId: mapId,
+            updatedTitle: mapTitle,
+          }),
         }
       );
 
@@ -98,7 +103,6 @@ const LiveCursors = () => {
   };
 
   const fetchAllMaps = async () => {
-    const userId = localStorage.getItem("userId");
     try {
       const response = await fetch(
         `https://atlas-map-express-api.up.railway.app/mapsByCollaborator?userId=${userId}`

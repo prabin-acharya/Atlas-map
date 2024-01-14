@@ -508,7 +508,7 @@ const Map: React.FC<Props> = ({
   const deleteFromDB = async (elementId: string) => {
     try {
       const response = await fetch(
-        `https://atlas-map-express-api.up.railway.app/delete-element?elementId=${elementId}`,
+        `https://atlas-map-express-api.up.railway.app/delete-element/${elementId}`,
         {
           method: "DELETE",
           headers: {
@@ -593,16 +593,14 @@ const Map: React.FC<Props> = ({
 
     try {
       const response = await fetch(
-        "https://atlas-map-express-api.up.railway.app/update-element",
+        `https://atlas-map-express-api.up.railway.app/update-element/${id}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            userId,
             element: {
-              id,
               coords: newPosition,
             },
           }),
