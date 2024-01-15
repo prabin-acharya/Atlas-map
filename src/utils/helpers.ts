@@ -15,78 +15,14 @@ export const colours = [
   { nameColor: "bg-yellow-500", cursorColor: "#FFC700" },
 ];
 
-const createMapAndGetID = async () => {
-  console.log("here--createMapId");
-  try {
-    const userId = localStorage.getItem("userId");
-    console.log(userId);
-    const response = await fetch(
-      "https://atlas-map-express-api.up.railway.app/newMap",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId }),
-      }
-    );
-
-    const data = await response.json();
-
-    localStorage.setItem("activeMapId", data.mapId);
-
-    return data.mapId;
-  } catch (error) {
-    console.error("Error creating map:", error);
-    throw error; // Re-throw the error to propagate it up if needed
-  }
-};
-
-export const getSpaceNameFromUrl = async () => {
+export const getSpaceNameFromUrl = () => {
   const url = new URL(window.location.href);
   const spaceNameInParams = url.searchParams.get("space");
+  const mapId = spaceNameInParams;
 
-  if (spaceNameInParams) {
-    const mapId = spaceNameInParams;
-    const userId = localStorage.getItem("userId");
+  mapId && localStorage.setItem("activeMapId", mapId);
 
-    localStorage.setItem("activeMapId", mapId);
-
-    try {
-      const response = await fetch(
-        `https://atlas-map-express-api.up.railway.app/addCollaborators`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            mapId,
-            userId,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        console.log("Successfully added!");
-      } else {
-        console.log(response);
-        console.error("Error:", response.status);
-      }
-    } catch (error) {
-      console.error("Request failed:");
-    }
-    return spaceNameInParams;
-  } else {
-    const generatedName = generate({ exactly: 3, join: "-" });
-    const savedMapId = localStorage.getItem("activeMapId");
-
-    const mapId = savedMapId ? savedMapId : await createMapAndGetID();
-    // url.searchParams.set("space", generatedName);
-    url.searchParams.set("space", mapId);
-    window.history.replaceState({}, "", `?${url.searchParams.toString()}`);
-    return generatedName;
-  }
+  return mapId;
 };
 
 import { type SpaceMember } from "@ably/spaces";

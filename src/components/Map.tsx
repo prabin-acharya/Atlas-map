@@ -79,6 +79,7 @@ const Map: React.FC<Props> = ({
   const [isDrawingFreehand, setIsDrawingFreehand] = useState(false);
   const [isImageDragging, setIsImageDragging] = useState(false);
 
+  /* Map Elements */
   const [markers, setMarkers] = useState<
     Record<string, google.maps.LatLngLiteral>
   >({});
@@ -105,15 +106,12 @@ const Map: React.FC<Props> = ({
   }>({});
 
   const fetchMapElements = async () => {
-    console.log("fetch here", mapId);
     const response = await fetch(
-      // `https://atlas-map-express-api.up.railway.app/elements?mapId=${mapId}`
       `https://atlas-map-express-api.up.railway.app/elements?mapId=${mapId}`
     );
     const data = await response.json();
 
     const savedElements = data.elements;
-    console.log("saved Elements", savedElements);
 
     savedElements.forEach((element: any) => {
       const elementType = element.elementType;
@@ -151,18 +149,16 @@ const Map: React.FC<Props> = ({
           break;
       }
     });
-
-    console.log(data, "---*****");
   };
 
   useEffect(() => {
+    if (googleMapInstance !== null) {
+      const zoomLevel = googleMapInstance.getZoom();
+      if (zoomLevel) setCurrentZoomLevel(zoomLevel);
+    }
+
     fetchMapElements();
   }, []);
-
-  //
-  //
-  //
-  //
 
   useAblySubscription(
     mapChannel,
@@ -175,6 +171,7 @@ const Map: React.FC<Props> = ({
     setImageOverlays,
     space
   );
+
   const saveElementToDB = async (id: string, coords: any) => {
     try {
       const response = await fetch(
@@ -197,10 +194,57 @@ const Map: React.FC<Props> = ({
       );
 
       const data = await response.json();
-      console.log(data);
+      console.log(data.message);
     } catch (err) {
       console.log(err);
     }
+  };
+
+  const deleteFromDB = async (elementId: string) => {
+    try {
+      const response = await fetch(
+        `https://atlas-map-express-api.up.railway.app/delete-element/${elementId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const data = await response.json();
+      console.log(data.message);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const handleCursorMove = (e: google.maps.MapMouseEvent) => {
+    setCursorPosition({
+      lat: e.latLng?.toJSON().lat ?? 18,
+      lng: e.latLng?.toJSON().lng ?? 73,
+      state: "move",
+    });
+
+    space.cursors.set({
+      position: {
+        x: e.latLng?.toJSON().lat ?? 18,
+        y: e.latLng?.toJSON().lng ?? 73,
+      },
+      data: { state: "move" },
+    });
+  };
+
+  const handleCursorLeave = (e: google.maps.MapMouseEvent) => {
+    setCursorPosition({
+      lat: 18,
+      lng: 73,
+      state: "leave",
+    });
+
+    space.cursors.set({
+      position: { x: 18, y: 73 },
+      data: { state: "leave" },
+    });
   };
 
   useEffect(() => {
@@ -272,7 +316,11 @@ const Map: React.FC<Props> = ({
             const latDiff = Math.abs(lastLat - prevLat);
             const lngDiff = Math.abs(lastLng - prevLng);
 
-            if (latDiff < 0.001 && lngDiff < 0.0001) {
+            const thredholdFactor = 0.0001 * Math.pow(2, 22 - currentZoomLevel);
+            console.log(thredholdFactor, "thrsholdFactor");
+            console.log(latDiff, lngDiff);
+
+            if (latDiff < 0.001 || lngDiff < 0.0001) {
               setIsDrawingFreehand(false);
               setCurrentDrawingMode(null);
               setCurrentFreehandPath([]);
@@ -386,8 +434,6 @@ const Map: React.FC<Props> = ({
               }
             );
             const data = await response.json();
-
-            console.log(data, "###@@");
           } catch (err) {
             console.log(err);
           }
@@ -444,7 +490,6 @@ const Map: React.FC<Props> = ({
 
     const onMouseUpGlobal = async () => {
       setIsDrawingFreehand(false);
-      console.log(selectedItemId, "--**&&");
       const selectedElement = selectedItemId?.split("_")[0];
       selectedElement == "text" && setSelectedItemId(null);
 
@@ -505,52 +550,6 @@ const Map: React.FC<Props> = ({
     currentDrawingMode,
   ]);
 
-  const deleteFromDB = async (elementId: string) => {
-    try {
-      const response = await fetch(
-        `https://atlas-map-express-api.up.railway.app/delete-element/${elementId}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const data = await response.json();
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const handleCursorMove = (e: google.maps.MapMouseEvent) => {
-    setCursorPosition({
-      lat: e.latLng?.toJSON().lat ?? 18,
-      lng: e.latLng?.toJSON().lng ?? 73,
-      state: "move",
-    });
-
-    space.cursors.set({
-      position: {
-        x: e.latLng?.toJSON().lat ?? 18,
-        y: e.latLng?.toJSON().lng ?? 73,
-      },
-      data: { state: "move" },
-    });
-  };
-
-  const handleCursorLeave = (e: google.maps.MapMouseEvent) => {
-    setCursorPosition({
-      lat: 18,
-      lng: 73,
-      state: "leave",
-    });
-
-    space.cursors.set({
-      position: { x: 18, y: 73 },
-      data: { state: "leave" },
-    });
-  };
-
   useEffect(() => {
     if (selectedItemId) {
       if (googleMapInstance) {
@@ -567,15 +566,27 @@ const Map: React.FC<Props> = ({
     if (googleMapInstance !== null) {
       const zoomLevel = googleMapInstance.getZoom();
       if (zoomLevel) setCurrentZoomLevel(zoomLevel);
-      // console.log("Current zoom level:", zoomLevel);
     }
   };
 
-  //
-  //
-  //
-  // handle drag markers
-  const handleDragEnd = async (
+  const handleMarkerDrag = (
+    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
+    id: string
+  ) => {
+    const newPosition = e.latLng?.toJSON();
+    if (!newPosition) {
+      console.log("marker not addedddd!!!!");
+      return;
+    }
+    setMarkers((prevMarkers) => {
+      const updatedMarkers = { ...prevMarkers };
+      updatedMarkers[id] = newPosition;
+      return updatedMarkers;
+    });
+    mapChannel.publish("drag-marker", { id, ...newPosition });
+  };
+
+  const handleMarkerDragEnd = async (
     e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
     id: string
   ) => {
@@ -607,41 +618,14 @@ const Map: React.FC<Props> = ({
         }
       );
       const data = await response.json();
-
-      console.log(data, "###@@");
     } catch (err) {
       console.log(err);
     }
   };
 
-  const handleDrag = (
-    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
-    id: string
-  ) => {
-    const newPosition = e.latLng?.toJSON();
-    if (!newPosition) {
-      console.log("marker not addedddd!!!!");
-      return;
-    }
-    setMarkers((prevMarkers) => {
-      const updatedMarkers = { ...prevMarkers };
-      updatedMarkers[id] = newPosition;
-      return updatedMarkers;
-    });
-    mapChannel.publish("drag-marker", { id, ...newPosition });
-  };
-
-  useEffect(() => {
-    window.addEventListener("dragenter", handleDragEnter);
-    // Cleanup
-    return () => {
-      window.removeEventListener("dragenter", handleDragEnter);
-    };
-  }, []);
-
-  const handleDragEnter = () => {
-    // Set pointer-events to 'auto' for .overlay-div
-  };
+  /* Image */
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [captureDrop, setCaptureDrop] = useState(false);
 
   const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
     console.log("HANDLE IMAGE DROP");
@@ -733,9 +717,6 @@ const Map: React.FC<Props> = ({
     setShowOverlay(false);
   };
 
-  const [showOverlay, setShowOverlay] = useState(false);
-  const [captureDrop, setCaptureDrop] = useState(false);
-
   useEffect(() => {
     const handleGlobalDragOver = (e: DragEvent) => {
       console.log("DRAG OVER");
@@ -762,19 +743,20 @@ const Map: React.FC<Props> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (googleMapInstance !== null) {
-      const zoomLevel = googleMapInstance.getZoom();
-      if (zoomLevel) setCurrentZoomLevel(zoomLevel);
-      console.log("Current zoom level:", zoomLevel);
-    }
-  }, []);
+  /* Element Options */
 
   const [showElementRightClickMenu, setShowElementRightClickMenu] =
     useState(false);
 
   const [rightClickPosition, setRightClickedPosition] =
     useState<google.maps.LatLngLiteral>();
+
+  const handleMapClick = (
+    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent
+  ) => {
+    currentDrawingMode == null && setSelectedItemId(null);
+    setShowElementRightClickMenu(false);
+  };
 
   const handleRightClickElement = (
     e: google.maps.MapMouseEvent | google.maps.IconMouseEvent,
@@ -787,16 +769,7 @@ const Map: React.FC<Props> = ({
     setSelectedItemId(id);
   };
 
-  const handleMapClick = (
-    e: google.maps.MapMouseEvent | google.maps.IconMouseEvent
-  ) => {
-    currentDrawingMode == null && setSelectedItemId(null);
-    setShowElementRightClickMenu(false);
-  };
-
   const deleteElement = async (id: string) => {
-    console.log(id);
-
     const element = id.split("_")[0];
 
     switch (element) {
@@ -891,13 +864,13 @@ const Map: React.FC<Props> = ({
                   key={id}
                   position={coords}
                   draggable={true}
-                  onDrag={(e) => handleDrag(e, id)}
-                  onDragEnd={(e) => handleDragEnd(e, id)}
+                  onDrag={(e) => handleMarkerDrag(e, id)}
+                  onDragEnd={(e) => handleMarkerDragEnd(e, id)}
                   onRightClick={(e) => handleRightClickElement(e, id)}
                 />
               ))}
 
-              {/* FREEHAND Drawing MARKER------------------------------------ */}
+              {/* FREEHAND Drawing------------------------------------ */}
               {Object.entries(freehandPaths).map(([id, path]) => (
                 <Polyline
                   key={id}
@@ -1103,9 +1076,6 @@ const Map: React.FC<Props> = ({
 
 export default Map;
 
-// ==========================================================================
-// ==========================================================================
-// ==========================================================================
 const calculateBounds = (
   latLng: google.maps.LatLng
 ): google.maps.LatLngBoundsLiteral => {

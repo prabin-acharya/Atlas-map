@@ -1,13 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import LiveCursors from "./components/LiveCursors";
 import { SpaceContextProvider } from "./components/SpacesContext";
 
 const App = () => {
-  useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    console.log(userId);
+  const [userId, setUserId] = useState<undefined | string>();
 
-    if (!userId) {
+  useEffect(() => {
+    const userIdFromLS = localStorage.getItem("userId");
+    userIdFromLS && setUserId(userIdFromLS);
+
+    if (!userIdFromLS) {
       getUserID();
     }
   }, []);
@@ -19,8 +21,7 @@ const App = () => {
       );
       const data = await response.json();
 
-      console.log(data);
-
+      setUserId(data.insertedId);
       localStorage.setItem("userId", data.insertedId);
     } catch (error) {
       console.error("Error fetching user ID:", error);
@@ -28,9 +29,13 @@ const App = () => {
   };
 
   return (
-    <SpaceContextProvider example="member-location">
-      <LiveCursors />
-    </SpaceContextProvider>
+    <>
+      {userId && (
+        <SpaceContextProvider example="member-location" userId={userId}>
+          <LiveCursors />
+        </SpaceContextProvider>
+      )}
+    </>
   );
 };
 export default App;

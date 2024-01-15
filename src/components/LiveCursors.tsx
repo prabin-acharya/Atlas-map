@@ -6,8 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { FaPlus } from "react-icons/fa";
-import { IoIosArrowDown, IoIosArrowUp, IoMdClose } from "react-icons/io";
+import { IoIosArrowDown, IoMdClose } from "react-icons/io";
 import useSpaceMembers from "../hooks/useMembers";
 import { DrawingMode } from "../types";
 import { Member, colours } from "../utils/helpers";
@@ -31,10 +30,9 @@ const LiveCursors = () => {
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
-    const memeberColor = userColors["nameColor"];
     space?.enter({ name, userColors });
 
-    userId && fetchAllMaps();
+    userId && mapId && fetchAllMaps();
   }, [space]);
 
   const { self, otherMembers } = useSpaceMembers(space);
@@ -67,8 +65,6 @@ const LiveCursors = () => {
       createdOn: Date;
     }[]
   >([]);
-
-  console.log(showAllMaps, "==__**");
 
   const mapId = localStorage.getItem("activeMapId");
 
@@ -105,24 +101,33 @@ const LiveCursors = () => {
   const fetchAllMaps = async () => {
     try {
       const response = await fetch(
-        `https://atlas-map-express-api.up.railway.app/mapsByCollaborator?userId=${userId}`
+        `https://atlas-map-express-api.up.railway.app/mapsByCollaborator/${userId}`
       );
 
       const data = await response.json();
 
       const allMaps = data.maps;
-      const sortedAllMaps = allMaps.sort(
-        (a: any, b: any) =>
-          new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
-      );
+      console.log(allMaps);
 
-      setAllMaps(sortedAllMaps);
+      if (allMaps.length > 0) {
+        const sortedAllMaps = allMaps.sort(
+          (a: any, b: any) =>
+            new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
+        );
 
-      const currentMap = allMaps.find(
-        (map: any) => map._id.toString() === mapId
-      );
+        console.log(sortedAllMaps, "sort");
+        setAllMaps(sortedAllMaps);
 
-      setMapTitle(currentMap.title);
+        const currentMap = sortedAllMaps.find(
+          (map: any) => map._id.toString() === mapId
+        );
+
+        console.log(currentMap, mapId);
+
+        setMapTitle(currentMap.title);
+      }
+
+      console.log(response);
 
       if (response.ok) {
         console.log("Successfully added!");
@@ -145,7 +150,6 @@ const LiveCursors = () => {
           </span>
         </h2>
         <div className="flex items-center h-full">
-          {/* <p className="text-white pr-4">Untitled</p> */}
           <input
             value={mapTitle}
             onChange={handleMapTitleChange}
@@ -158,13 +162,13 @@ const LiveCursors = () => {
             className="h-full flex items-center"
           >
             <IoIosArrowDown
-              // className="text-white cursor-pointer transform rotate-180 transition-all duration-300"
               className={`text-white cursor-pointer ${
                 showContextMenu ? "rotate-180" : ""
               } transition-all duration-300`}
               onClick={() => setShowContextMenu(!showContextMenu)}
             />
 
+            {/* New Map, All Maps Menu */}
             {showContextMenu && (
               <div className="absolute bg-black text-white text-sm  top-12 z-50 rounded-md py-3">
                 <span
@@ -180,7 +184,6 @@ const LiveCursors = () => {
 
                     localStorage.removeItem("activeMapId");
                     window.location.href = "/";
-                    // const maps = ["658ef9dc23fa08064fb38782"];
                   }}
                   className="flex border-b border-gray-700 px-5 py-2  hover:bg-gray-900 cursor-pointer"
                 >
@@ -197,6 +200,7 @@ const LiveCursors = () => {
           </div>
         </div>
 
+        {/* Saved Maps Menu */}
         {showAllMaps && (
           <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="w-1/2 h-2/3 pb-32">
@@ -209,7 +213,6 @@ const LiveCursors = () => {
                     <IoMdClose />
                   </span>
                 </div>
-                {/* Your menu content goes here */}
                 <h2 className="font-semibold text-2xl mb-3"> Saved Maps</h2>
                 <div className="flex flex-col flex-wrap h-full">
                   {allMaps.map((map) => (
