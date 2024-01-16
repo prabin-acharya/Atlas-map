@@ -643,6 +643,10 @@ const Map: React.FC<Props> = ({
         // Create blob URL
         const imageBlobUrl = URL.createObjectURL(file);
 
+        const imageBase64 = reader.result as string;
+
+        console.log(imageBase64, "base64");
+
         const tempImg = new Image();
         tempImg.src = imageBlobUrl;
 
@@ -706,6 +710,7 @@ const Map: React.FC<Props> = ({
                     coords: centerPosition,
                     url: imageBlobUrl,
                     size: baseSize,
+                    imageBase64,
                   },
                 });
               }

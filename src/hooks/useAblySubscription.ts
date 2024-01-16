@@ -186,6 +186,7 @@ const useAblySubscription = (
             url: string;
             coords: google.maps.LatLngLiteral;
             size: { width: number; height: number };
+            imageBase64: string;
           };
         };
         clientId: string;
@@ -193,13 +194,26 @@ const useAblySubscription = (
         if (message.clientId == space?.client.auth.clientId) return;
 
         const id = Object.keys(message.data)[0];
-        const { url, coords, size } = message.data[id];
+        const { url, coords, size, imageBase64 } = message.data[id];
 
-        console.log(url, coords, size);
+        const tempImg = new Image();
+        tempImg.src = imageBase64;
+        const imageData = imageBase64;
+
+        const byteCharacters = atob(imageData.split(",")[1]);
+        const byteNumbers = new Array(byteCharacters.length);
+
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "image/jpeg" });
+        const imageBlobUrl = URL.createObjectURL(blob);
 
         setImageOverlays((prev) => ({
           ...prev,
-          [id]: { url, coords, size },
+          [id]: { url: imageBlobUrl, coords, size },
         }));
       }
     );
