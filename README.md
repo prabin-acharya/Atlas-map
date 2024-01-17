@@ -5,6 +5,7 @@ Alas is a realtime collaborative map. Users can make a map more interactive, inf
 You can create a map, add elements to it and invite your friends to plan a trip, trek, survey or just to explore a place.
 
 Create a map -> [https://atlas-map.vercel.app](https://atlas-map.vercel.app/)
+![Alt text](map.png)
 
 ## Built With
 
