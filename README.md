@@ -11,4 +11,10 @@ Create a map -> [https://atlas-map.vercel.app](https://atlas-map.vercel.app/)
 - React(vite)
 - MongoDB
 - ExpressJS
+- Ably
 - TailwindCSS
+
+## What's Next
+
+- Allow selection of an area
+- Routes
