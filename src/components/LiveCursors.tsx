@@ -13,6 +13,8 @@ import { Member, colours } from "../utils/helpers";
 import { mockNames } from "../utils/mockNames";
 import { SpacesContext } from "./SpacesContext";
 
+import { useAbly } from "ably/react";
+import useAblySubscription from "../hooks/useAblySubscription";
 import Avatars from "./Avatars";
 import Map from "./Map";
 
@@ -71,6 +73,10 @@ const LiveCursors = () => {
   const handleMapTitleChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
 
+    setMapTitle(newValue);
+
+    mapChannel.publish("update-mapTitle", { title: newValue });
+
     try {
       const response = await fetch(
         `https://atlas-map-express-api.up.railway.app/updateMapTitle`,
@@ -94,8 +100,6 @@ const LiveCursors = () => {
     } catch (error) {
       console.error("Request failed:");
     }
-
-    setMapTitle(newValue);
   };
 
   const fetchAllMaps = async () => {
@@ -139,6 +143,27 @@ const LiveCursors = () => {
       console.error("Request failed:");
     }
   };
+
+  const client = useAbly();
+  const mapChannel = client.channels.get("map-updates");
+
+  useEffect(() => {
+    const updateMapTitleSubscription = mapChannel.subscribe(
+      "update-mapTitle",
+      (message: { data: { title: string }; clientId: string }) => {
+        if (message.clientId == space?.client.auth.clientId) return;
+
+        const { title } = message.data;
+        setMapTitle(title);
+      }
+    );
+
+    console.log(updateMapTitleSubscription, "#####");
+
+    return () => {
+      updateMapTitleSubscription?.unsubscribe?.();
+    };
+  }, [mapChannel, space]);
 
   return (
     <div className="flex flex-col h-screen">

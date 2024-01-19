@@ -7,17 +7,16 @@ import { getSpaceNameFromUrl } from "../utils/helpers";
 const SpacesContext = createContext<Space | undefined>(undefined);
 
 const SpaceContextProvider = ({
-  example,
   children,
+  userId,
 }: {
-  example: string;
   children: React.ReactNode;
   userId: string;
 }) => {
   const [space, setSpace] = useState<Space | undefined>(undefined);
   const client = useAbly();
 
-  const spaces = useMemo(() => new Spaces(client), [example]);
+  const spaces = useMemo(() => new Spaces(client), [userId]);
 
   const addUserAsCollaboratorToMap = async (mapId: string) => {
     const userId = localStorage.getItem("userId");

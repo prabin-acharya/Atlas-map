@@ -31,7 +31,7 @@ const App = () => {
   return (
     <>
       {userId && (
-        <SpaceContextProvider example="member-location" userId={userId}>
+        <SpaceContextProvider userId={userId}>
           <LiveCursors />
         </SpaceContextProvider>
       )}
