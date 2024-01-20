@@ -14,7 +14,6 @@ import { mockNames } from "../utils/mockNames";
 import { SpacesContext } from "./SpacesContext";
 
 import { useAbly } from "ably/react";
-import useAblySubscription from "../hooks/useAblySubscription";
 import Avatars from "./Avatars";
 import Map from "./Map";
 
@@ -45,11 +44,12 @@ const LiveCursors = () => {
     useState<DrawingMode | null>(null);
 
   const [linkCopied, setLinkCopied] = useState(false);
-  const handleButtonClick = async () => {
+  const copyLinkToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText("hello clipboard");
+      const url = window.location.href;
+      await navigator.clipboard.writeText(url);
       setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000); // Message will disappear after 2 seconds
+      setTimeout(() => setLinkCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy text: ", err);
     }
@@ -178,6 +178,7 @@ const LiveCursors = () => {
           <input
             value={mapTitle}
             onChange={handleMapTitleChange}
+            onBlur={() => setMapTitle(mapTitle.trim() ? mapTitle : "Untitled")}
             className={`bg-slate-500 outline-none  text-white font-medium p-0 m-0 text-center `}
             style={{ width: `${mapTitle?.length * 10 + 18}px` }}
           />
@@ -267,15 +268,26 @@ const LiveCursors = () => {
           </div>
         )}
 
-        <div className="flex space-x-2 mr-4 items-center">
-          <div className="pr-24" id="avatar-stack">
+        <div className="flex space-x-2 mr-4 items-center pr-8">
+          <div className="" id="avatar-stack">
             <Avatars
               self={self as Member | null}
               otherUsers={otherMembers as Member[]}
             />
           </div>
 
-          {linkCopied && <div className="text-sm text-white">Link Copied!</div>}
+          <button
+            onClick={copyLinkToClipboard}
+            className="text-sm bg-[#3E5645] px-3 py-2 rounded-md text-white"
+          >
+            Share
+          </button>
+
+          {linkCopied && (
+            <div className="absolute top-13 right-10 text-sm font-semibold text-white z-50">
+              Link Copied To Clipboard
+            </div>
+          )}
         </div>
       </div>
       <div
