@@ -80,7 +80,7 @@ const TextLabel: React.FC<TextLabelProps> = ({
         placeholder="Enter text..."
         // onBlur={handleInputBlur}
         onClick={handleTextClick}
-        className="no-select text-white text-lg font-bold w-fit inline-block p-4 whitespace-nowrap z-1000 pointer-events-auto border-none cursor-pointer bg-green-100/0 outline-none select-none border-2 border-red-600"
+        className="no-select text-white text-lg font-bold w-fit inline-block whitespace-nowrap z-1000 pointer-events-auto cursor-pointer bg-green-100/0 outline-none select-none  outline"
         style={{
           fontSize: calculateFontSize(),
         }}

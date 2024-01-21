@@ -29,36 +29,29 @@ const LiveCursors = () => {
   const space = useContext(SpacesContext);
 
   const userId = localStorage.getItem("userId");
+  const mapId = localStorage.getItem("activeMapId");
+
+  const [userName, setUserName] = useState("");
 
   useEffect(() => {
     space?.enter({ name, userColors });
+
+    if (space) {
+      setUserName(name as string);
+    }
 
     userId && mapId && fetchAllMaps();
   }, [space]);
 
   const { self, otherMembers } = useSpaceMembers(space);
-
   const liveCursors = useRef(null);
+
+  const client = useAbly();
+  const mapChannel = client.channels.get("map-updates");
 
   const [currentDrawingMode, setCurrentDrawingMode] =
     useState<DrawingMode | null>(null);
 
-  const [linkCopied, setLinkCopied] = useState(false);
-  const copyLinkToClipboard = async () => {
-    try {
-      const url = window.location.href;
-      await navigator.clipboard.writeText(url);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-    }
-  };
-
-  const [showContextMenu, setShowContextMenu] = useState(false);
-  const [mapTitle, setMapTitle] = useState("Untitled");
-
-  const [showAllMaps, setShowAllMaps] = useState(false);
   const [allMaps, setAllMaps] = useState<
     {
       _id: string;
@@ -68,39 +61,57 @@ const LiveCursors = () => {
     }[]
   >([]);
 
-  const mapId = localStorage.getItem("activeMapId");
+  const [mapTitle, setMapTitle] = useState("");
 
-  const handleMapTitleChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const newValue = event.target.value;
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [showAllMaps, setShowAllMaps] = useState(false);
 
-    setMapTitle(newValue);
-
-    mapChannel.publish("update-mapTitle", { title: newValue });
-
+  const copyLinkToClipboard = async () => {
     try {
-      const response = await fetch(
-        `https://atlas-map-express-api.up.railway.app/updateMapTitle`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            mapId: mapId,
-            updatedTitle: mapTitle,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        console.log("Value saved successfully!");
-      } else {
-        console.error("Error saving value:", response.status);
-      }
-    } catch (error) {
-      console.error("Request failed:");
+      const url = window.location.href;
+      await navigator.clipboard.writeText(url);
+      setShowShareMenu(true);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
     }
   };
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(async () => {
+      try {
+        const map = allMaps.find((map: any) => map._id.toString() === mapId);
+
+        if (mapTitle && mapTitle != map?.title) {
+          console.log("update map title", mapTitle);
+          const response = await fetch(
+            `https://atlas-map-express-api.up.railway.app/updateMapTitle`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                mapId: mapId,
+                updatedTitle: mapTitle,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            console.log("Value saved successfully!");
+          } else {
+            console.error("Error saving value:", response.status);
+            console.log(response);
+          }
+        }
+      } catch (error) {
+        console.error("Request failed:", error);
+      }
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [mapTitle]);
 
   const fetchAllMaps = async () => {
     try {
@@ -111,7 +122,6 @@ const LiveCursors = () => {
       const data = await response.json();
 
       const allMaps = data.maps;
-      console.log(allMaps);
 
       if (allMaps.length > 0) {
         const sortedAllMaps = allMaps.sort(
@@ -119,24 +129,16 @@ const LiveCursors = () => {
             new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
         );
 
-        console.log(sortedAllMaps, "sort");
         setAllMaps(sortedAllMaps);
 
         const currentMap = sortedAllMaps.find(
           (map: any) => map._id.toString() === mapId
         );
 
-        console.log(currentMap, mapId);
-
         setMapTitle(currentMap.title);
       }
 
-      console.log(response);
-
-      if (response.ok) {
-        console.log("Successfully added!");
-      } else {
-        console.log(response);
+      if (!response.ok) {
         console.error("Error:", response.status);
       }
     } catch (error) {
@@ -144,8 +146,18 @@ const LiveCursors = () => {
     }
   };
 
-  const client = useAbly();
-  const mapChannel = client.channels.get("map-updates");
+  const handleMapTitleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
+    setMapTitle(newValue);
+  };
+
+  const updateUserName = async (event: ChangeEvent<HTMLInputElement>) => {
+    setUserName(event.target.value);
+    await space?.updateProfileData((currentProfile) => {
+      console.log(currentProfile);
+      return { ...currentProfile, name: event.target.value };
+    });
+  };
 
   useEffect(() => {
     const updateMapTitleSubscription = mapChannel.subscribe(
@@ -157,8 +169,6 @@ const LiveCursors = () => {
         setMapTitle(title);
       }
     );
-
-    console.log(updateMapTitleSubscription, "#####");
 
     return () => {
       updateMapTitleSubscription?.unsubscribe?.();
@@ -226,11 +236,27 @@ const LiveCursors = () => {
           </div>
         </div>
 
+        <div className="flex space-x-2 mr-4 items-center pr-8">
+          <div className="" id="avatar-stack">
+            <Avatars
+              self={self as Member | null}
+              otherUsers={otherMembers as Member[]}
+            />
+          </div>
+
+          <button
+            onClick={copyLinkToClipboard}
+            className="text-sm bg-[#3E5645] px-3 py-2 rounded-md text-white"
+          >
+            Share
+          </button>
+        </div>
+
         {/* Saved Maps Menu */}
         {showAllMaps && (
           <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="w-1/2 h-2/3 pb-32">
-              <div className="bg-white p-6 rounded-lg w-full h-full opacity-90">
+              <div className="bg-slate-500 p-6 rounded-sm w-full h-full opacity-90 text-white">
                 <div className="flex flex-row-reverse">
                   <span
                     className="cursor-pointer"
@@ -239,15 +265,16 @@ const LiveCursors = () => {
                     <IoMdClose />
                   </span>
                 </div>
-                <h2 className="font-semibold text-2xl mb-3"> Saved Maps</h2>
+                <h2 className="font-semibold text-2xl mb-2"> Saved Maps</h2>
+                <hr className="mb-5" />
                 <div className="flex flex-col flex-wrap h-full">
-                  {allMaps.map((map) => (
+                  {allMaps.slice(0, 3).map((map) => (
                     <div
                       onClick={() => {
                         localStorage.setItem("activeMapId", map._id);
                         window.location.href = `/?space=${map._id}`;
                       }}
-                      className="px-4 py-2 mr-2 bg-gray-100 w-1/3 mb-2 rounded cursor-pointer"
+                      className="px-4 py-2 mr-2 bg-gray-600 w-1/3 mb-2 rounded cursor-pointer"
                     >
                       <p>
                         <b>{map.title || "Untitled"}</b>
@@ -268,27 +295,46 @@ const LiveCursors = () => {
           </div>
         )}
 
-        <div className="flex space-x-2 mr-4 items-center pr-8">
-          <div className="" id="avatar-stack">
-            <Avatars
-              self={self as Member | null}
-              otherUsers={otherMembers as Member[]}
-            />
-          </div>
-
-          <button
-            onClick={copyLinkToClipboard}
-            className="text-sm bg-[#3E5645] px-3 py-2 rounded-md text-white"
-          >
-            Share
-          </button>
-
-          {linkCopied && (
-            <div className="absolute top-13 right-10 text-sm font-semibold text-white z-50">
-              Link Copied To Clipboard
+        {/* Share Map Menu */}
+        {showShareMenu && (
+          <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="w-1/3 h-2/3  pb-32">
+              <div className="bg-slate-500 p-6 rounded-sm w-full h-full opacity-90 text-white">
+                <div className="flex flex-row-reverse">
+                  <span
+                    className="cursor-pointer"
+                    onClick={() => setShowShareMenu(false)}
+                  >
+                    <IoMdClose />
+                  </span>
+                </div>
+                <h2 className="font-semibold text-2xl mb-2"> Share</h2>
+                <hr className="mb-5" />
+                <span className="block font-semibold">Your Name</span>
+                <input
+                  className="border border-green-700 p-2 rounded-sm mb-2 w-2/3 focus:outline focus:outline-2focus:outline-green-800 text-black"
+                  value={userName}
+                  onChange={updateUserName}
+                />
+                <span className="block font-semibold">Link</span>
+                <input
+                  className="border border-green-800 p-2 rounded-sm mb-2 bg-slate-300 w-2/3 outline-none text-black"
+                  value={window.location.href}
+                  onChange={updateUserName}
+                />
+                <button
+                  onClick={copyLinkToClipboard}
+                  className="text-sm bg-[#3E5645] px-3 py-3 rounded-md text-white ml-4"
+                >
+                  Copy Link
+                </button>
+                <p className=" mt-2 ">
+                  Any one with the link can edit this map
+                </p>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       <div
         id="live-cursors"

@@ -16,7 +16,7 @@ const SelfAvatar = ({ self }: { self: Member | null }) => {
 
   return (
     <div
-      className="bg-orange-600 h-12 w-12 rounded-full flex items-center justify-center relative border-2 border-gray-200"
+      className="bg-orange-600 h-10 w-10 rounded-full flex items-center justify-center relative border-2 border-gray-200"
       onMouseOver={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
@@ -27,7 +27,7 @@ const SelfAvatar = ({ self }: { self: Member | null }) => {
       />
 
       {hover && self ? (
-        <div className="absolute top-12 px-2 py-2 bg-black rounded-lg text-white min-w-[240px] z-50">
+        <div className="absolute top-10 px-2 py-2 bg-black rounded-lg text-white min-w-[240px] z-50">
           <UserInfo user={self} isSelf={true} />
         </div>
       ) : null}
@@ -56,7 +56,7 @@ const OtherAvatars = ({
             [user.profileData.userColors.nameColor]: user.isConnected,
             "bg-gray-200": !user.isConnected,
           },
-          "h-12 w-12 rounded-full flex items-center justify-center relative border-2 border-gray-200"
+          "h-10 w-10 rounded-full flex items-center justify-center relative border-2 border-gray-200"
         );
         const initialsCSS = classNames(
           {
@@ -93,7 +93,7 @@ const OtherAvatars = ({
             </div>
 
             {hoveredClientId === user.clientId ? (
-              <div className="absolute top-12 px-2 py-2 bg-black rounded-lg text-white min-w-[240px] z-50">
+              <div className="absolute top-10 px-2 py-2 bg-black rounded-lg text-white min-w-[240px] z-50">
                 <UserInfo user={user} />
               </div>
             ) : null}

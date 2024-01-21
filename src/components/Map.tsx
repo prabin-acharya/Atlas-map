@@ -775,6 +775,7 @@ const Map: React.FC<Props> = ({
   };
 
   const deleteElement = async (id: string) => {
+    console.log(id, "++++++--------");
     const element = id.split("_")[0];
 
     switch (element) {
@@ -825,6 +826,46 @@ const Map: React.FC<Props> = ({
     setSelectedItemId(null);
   };
 
+  const handleTextChange = async (
+    newText: string,
+    id: string,
+    textData: TextData
+  ) => {
+    setTexts({
+      ...texts,
+      [id]: { ...textData, text: newText },
+    });
+
+    mapChannel.publish("update-text", {
+      id,
+      updatedText: newText,
+    });
+
+    try {
+      const response = await fetch(
+        "https://atlas-map-express-api.up.railway.app/text",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId,
+            mapId: mapId,
+            element: {
+              id,
+              coords: textData.coords,
+              text: newText,
+            },
+          }),
+        }
+      );
+      const data = await response.json();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   return (
     <div className="h-full w-full">
       {!isLoaded ? (
@@ -855,7 +896,11 @@ const Map: React.FC<Props> = ({
                     <div className="flex py-2 bg-white text-black w-32 font-medium rounded-md shadow-md text-base">
                       <span
                         className=" w-full px-2 py-1  hover:bg-orange-200 cursor-pointer"
-                        onClick={() => deleteElement(selectedItemId)}
+                        // onClick={() => deleteElement(selectedItemId)}
+                        onClick={() => {
+                          console.log("Clicked Delete");
+                          deleteElement(selectedItemId);
+                        }}
                       >
                         Delete
                       </span>
@@ -970,43 +1015,9 @@ const Map: React.FC<Props> = ({
                   text={textData.text}
                   zoomLevel={currentZoomLevel}
                   setSelectedItemId={setSelectedItemId}
-                  onTextChange={async (newText) => {
-                    setTexts({
-                      ...texts,
-                      [id]: { ...textData, text: newText },
-                    });
-
-                    console.log("---textlable");
-
-                    mapChannel.publish("update-text", {
-                      id,
-                      updatedText: newText,
-                    });
-
-                    try {
-                      const response = await fetch(
-                        "https://atlas-map-express-api.up.railway.app/text",
-                        {
-                          method: "PUT",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({
-                            userId,
-                            mapId: mapId,
-                            element: {
-                              id,
-                              coords: textData.coords,
-                              text: newText,
-                            },
-                          }),
-                        }
-                      );
-                      const data = await response.json();
-                    } catch (err) {
-                      console.log(err);
-                    }
-                  }}
+                  onTextChange={(newText) =>
+                    handleTextChange(newText, id, textData)
+                  }
                 />
               ))}
 

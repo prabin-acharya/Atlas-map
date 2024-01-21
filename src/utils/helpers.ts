@@ -29,9 +29,9 @@ import { type SpaceMember } from "@ably/spaces";
 
 export const REMOVE_USER_AFTER_MILLIS = 120_000;
 export const MAX_USERS_BEFORE_LIST = 4;
-export const HORIZONTAL_SPACING_OFFSET = 40;
-export const OVERLAP_AMOUNT = 40;
-export const AVATAR_WIDTH = 48;
+export const HORIZONTAL_SPACING_OFFSET = 32;
+export const OVERLAP_AMOUNT = 32;
+export const AVATAR_WIDTH = 40;
 
 export type Member = Omit<SpaceMember, "profileData"> & {
   profileData: {
