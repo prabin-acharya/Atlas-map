@@ -270,6 +270,7 @@ const Map: React.FC<Props> = ({
       switch (currentDrawingMode) {
         case "MARKER":
           const latLng = e.latLng;
+          console.log(latLng?.toJSON());
           if (latLng !== null) {
             const id = "marker_" + Date.now().toString();
 
@@ -312,7 +313,7 @@ const Map: React.FC<Props> = ({
           if (e.latLng)
             setCurrentFreehandPath((prev) => [...prev, e.latLng!.toJSON()]);
 
-          // Check if close to the last point
+          // Check if too close to the last point
           if (currentFreehandPath.length > 1) {
             const lastLat = newPoint.lat;
             const lastLng = newPoint.lng;
@@ -323,9 +324,10 @@ const Map: React.FC<Props> = ({
             const latDiff = Math.abs(lastLat - prevLat);
             const lngDiff = Math.abs(lastLng - prevLng);
 
-            const thredholdFactor = 0.0001 * Math.pow(2, 22 - currentZoomLevel);
+            const thredholdFactor =
+              0.0000065 * Math.pow(2, 22 - currentZoomLevel);
 
-            if (latDiff < 0.001 || lngDiff < 0.0001) {
+            if (latDiff < thredholdFactor && lngDiff < thredholdFactor) {
               setIsDrawingFreehand(false);
               setCurrentDrawingMode(null);
               setCurrentFreehandPath([]);
@@ -359,7 +361,10 @@ const Map: React.FC<Props> = ({
             const latDiff = Math.abs(lastLat - firstLat);
             const lngDiff = Math.abs(lastLng - firstLng);
 
-            if (latDiff < 0.001 && lngDiff < 0.0001) {
+            const thredholdFactor =
+              0.0000065 * Math.pow(2, 22 - currentZoomLevel);
+
+            if (latDiff < thredholdFactor && lngDiff < thredholdFactor) {
               setIsDrawingFreehand(false);
               setCurrentDrawingMode(null);
               setCurrentFreehandPath([]);
@@ -713,19 +718,16 @@ const Map: React.FC<Props> = ({
 
   useEffect(() => {
     const handleGlobalDragOver = (e: DragEvent) => {
-      console.log("DRAG OVER");
       e.preventDefault();
       setShowOverlay(true);
-      setCaptureDrop(true); // Enable drop capture
+      setCaptureDrop(true);
     };
 
     const handleGlobalDrop = (e: DragEvent) => {
-      console.log("GLOBAL DROP");
-
-      e.preventDefault(); // Add this line to prevent the default behavior
+      e.preventDefault();
       e.stopPropagation();
       setShowOverlay(false);
-      setCaptureDrop(false); // Disable drop capture after drop is complete
+      setCaptureDrop(false);
     };
 
     window.addEventListener("dragover", handleGlobalDragOver);
@@ -854,8 +856,6 @@ const Map: React.FC<Props> = ({
       console.log(err);
     }
   };
-
-  const handleTextRightClick = () => {};
 
   return (
     <div className="h-full w-full">
