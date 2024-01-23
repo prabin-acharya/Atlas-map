@@ -66,12 +66,18 @@ const LiveCursors = () => {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [showAllMaps, setShowAllMaps] = useState(false);
+  const [showLinkCopiedMessage, setShowLinkCopiedMessage] = useState(false);
 
   const copyLinkToClipboard = async () => {
+    setShowLinkCopiedMessage(true);
+
+    setTimeout(() => {
+      setShowLinkCopiedMessage(false);
+    }, 2000);
+
     try {
       const url = window.location.href;
       await navigator.clipboard.writeText(url);
-      setShowShareMenu(true);
     } catch (err) {
       console.error("Failed to copy text: ", err);
     }
@@ -245,7 +251,7 @@ const LiveCursors = () => {
           </div>
 
           <button
-            onClick={copyLinkToClipboard}
+            onClick={() => setShowShareMenu(true)}
             className="text-sm bg-[#3E5645] px-3 py-2 rounded-md text-white"
           >
             Share
@@ -255,41 +261,39 @@ const LiveCursors = () => {
         {/* Saved Maps Menu */}
         {showAllMaps && (
           <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="w-1/2 h-2/3 pb-32">
-              <div className="bg-slate-500 p-6 rounded-sm w-full h-full opacity-90 text-white">
-                <div className="flex flex-row-reverse">
-                  <span
-                    className="cursor-pointer"
-                    onClick={() => setShowAllMaps(false)}
+            <div className="w-1/2 h-2/3 min-w-[400px]  min-h-[400px] bg-slate-500 opacity-95 rounded-sm text-white  p-6 pb-12 ">
+              <div className="flex flex-row-reverse">
+                <span
+                  className="cursor-pointer"
+                  onClick={() => setShowAllMaps(false)}
+                >
+                  <IoMdClose />
+                </span>
+              </div>
+              <h2 className="font-semibold text-2xl mb-2"> Saved Maps</h2>
+              <hr className="mb-5" />
+              <div className="flex flex-col flex-wrap h-5/6">
+                {allMaps.slice(0, 6).map((map) => (
+                  <div
+                    onClick={() => {
+                      localStorage.setItem("activeMapId", map._id);
+                      window.location.href = `/?space=${map._id}`;
+                    }}
+                    className="px-4 py-2 mr-2 bg-gray-600 w-1/3 mb-2 rounded cursor-pointer"
                   >
-                    <IoMdClose />
-                  </span>
-                </div>
-                <h2 className="font-semibold text-2xl mb-2"> Saved Maps</h2>
-                <hr className="mb-5" />
-                <div className="flex flex-col flex-wrap h-full">
-                  {allMaps.slice(0, 3).map((map) => (
-                    <div
-                      onClick={() => {
-                        localStorage.setItem("activeMapId", map._id);
-                        window.location.href = `/?space=${map._id}`;
-                      }}
-                      className="px-4 py-2 mr-2 bg-gray-600 w-1/3 mb-2 rounded cursor-pointer"
-                    >
-                      <p>
-                        <b>{map.title || "Untitled"}</b>
-                      </p>
-                      <span>
-                        Created On:
-                        {new Date(map?.createdOn).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                    <p>
+                      <b>{map.title || "Untitled"}</b>
+                    </p>
+                    <span>
+                      Created On:
+                      {new Date(map?.createdOn).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -298,40 +302,41 @@ const LiveCursors = () => {
         {/* Share Map Menu */}
         {showShareMenu && (
           <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="w-1/3 h-2/3  pb-32">
-              <div className="bg-slate-500 p-6 rounded-sm w-full h-full opacity-90 text-white">
-                <div className="flex flex-row-reverse">
-                  <span
-                    className="cursor-pointer"
-                    onClick={() => setShowShareMenu(false)}
-                  >
-                    <IoMdClose />
-                  </span>
-                </div>
-                <h2 className="font-semibold text-2xl mb-2"> Share</h2>
-                <hr className="mb-5" />
-                <span className="block font-semibold">Your Name</span>
-                <input
-                  className="border border-green-700 p-2 rounded-sm mb-2 w-2/3 focus:outline focus:outline-2focus:outline-green-800 text-black"
-                  value={userName}
-                  onChange={updateUserName}
-                />
-                <span className="block font-semibold">Link</span>
-                <input
-                  className="border border-green-800 p-2 rounded-sm mb-2 bg-slate-300 w-2/3 outline-none text-black"
-                  value={window.location.href}
-                  onChange={updateUserName}
-                />
-                <button
-                  onClick={copyLinkToClipboard}
-                  className="text-sm bg-[#3E5645] px-3 py-3 rounded-md text-white ml-4"
+            <div className="w-1/3 min-w-[400px] h-1/2 min-h-[400px] bg-slate-500 opacity-95 rounded-sm text-white  p-6 ">
+              <div className="flex flex-row-reverse">
+                <span
+                  className="cursor-pointer"
+                  onClick={() => setShowShareMenu(false)}
                 >
-                  Copy Link
-                </button>
-                <p className=" mt-2 ">
-                  Any one with the link can edit this map
-                </p>
+                  <IoMdClose />
+                </span>
               </div>
+              <h2 className="font-semibold text-2xl mb-2"> Share</h2>
+              <hr className="mb-5" />
+              <span className="block font-semibold">Your Name</span>
+              <input
+                className="border border-green-700 p-2 rounded-sm mb-2 w-2/3 focus:outline focus:outline-2focus:outline-green-800 text-black"
+                value={userName}
+                onChange={updateUserName}
+              />
+              <span className="block font-semibold">Link</span>
+              <input
+                className="border border-green-800 p-2 rounded-sm mb-2 bg-slate-300 w-2/3 outline-none text-black"
+                value={window.location.href}
+                onChange={updateUserName}
+              />
+              <div className="inline-block">
+                <button
+                  onClick={() => copyLinkToClipboard()}
+                  className="text-sm bg-[#3E5645] px-3 py-3 rounded-md text-white ml-4 w-[100px]"
+                >
+                  {showLinkCopiedMessage ? "Copied! " : "Copy Link"}
+                </button>
+              </div>
+
+              <p className=" mt-6 font-medium underline underline-offset-2">
+                Any one with the link can edit this map
+              </p>
             </div>
           </div>
         )}
