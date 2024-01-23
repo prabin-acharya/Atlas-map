@@ -106,49 +106,58 @@ const Map: React.FC<Props> = ({
   }>({});
 
   const fetchMapElements = async () => {
-    const response = await fetch(
-      `https://atlas-map-express-api.up.railway.app/elements?mapId=${mapId}`
-    );
-    const data = await response.json();
+    try {
+      const response = await fetch(
+        `https://atlas-map-express-api.up.railway.app/elements?mapId=${mapId}`
+      );
 
-    const savedElements = data.elements;
-
-    savedElements.forEach((element: any) => {
-      const elementType = element.elementType;
-      switch (elementType) {
-        case "marker":
-          setMarkers((prev) => ({ ...prev, [element.id]: element.coords }));
-          break;
-        case "freehand":
-          setFreehandPaths((prev) => ({
-            ...prev,
-            [element.id]: element.coords,
-          }));
-          break;
-        case "polyline":
-          setPolylines((prev) => ({
-            ...prev,
-            [element.id]: element.coords,
-          }));
-          break;
-        case "polygon":
-          setPolygons((prev) => ({
-            ...prev,
-            [element.id]: element.coords,
-          }));
-          break;
-
-        case "text":
-          setTexts((prev) => ({
-            ...prev,
-            [element.id]: { text: element.text, coords: element.coords },
-          }));
-          break;
-
-        default:
-          break;
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch map elements. Status: ${response.status}`
+        );
       }
-    });
+
+      const data = await response.json();
+
+      const savedElements = data.elements;
+
+      savedElements.forEach((element: any) => {
+        const elementType = element.elementType;
+        switch (elementType) {
+          case "marker":
+            setMarkers((prev) => ({ ...prev, [element.id]: element.coords }));
+            break;
+          case "freehand":
+            setFreehandPaths((prev) => ({
+              ...prev,
+              [element.id]: element.coords,
+            }));
+            break;
+          case "polyline":
+            setPolylines((prev) => ({
+              ...prev,
+              [element.id]: element.coords,
+            }));
+            break;
+          case "polygon":
+            setPolygons((prev) => ({
+              ...prev,
+              [element.id]: element.coords,
+            }));
+            break;
+          case "text":
+            setTexts((prev) => ({
+              ...prev,
+              [element.id]: { text: element.text, coords: element.coords },
+            }));
+            break;
+          default:
+            break;
+        }
+      });
+    } catch (error) {
+      console.error(`Error while fetching elements`);
+    }
   };
 
   useEffect(() => {
@@ -294,8 +303,6 @@ const Map: React.FC<Props> = ({
               },
             });
 
-            // await saveElementToDB(id, coords);
-
             setCurrentDrawingMode(null);
           }
           break;
@@ -317,8 +324,6 @@ const Map: React.FC<Props> = ({
             const lngDiff = Math.abs(lastLng - prevLng);
 
             const thredholdFactor = 0.0001 * Math.pow(2, 22 - currentZoomLevel);
-            console.log(thredholdFactor, "thrsholdFactor");
-            console.log(latDiff, lngDiff);
 
             if (latDiff < 0.001 || lngDiff < 0.0001) {
               setIsDrawingFreehand(false);
@@ -397,7 +402,6 @@ const Map: React.FC<Props> = ({
     };
 
     const onMouseMove = async (e: google.maps.MapMouseEvent) => {
-      // text move -- here need to
       if (selectedItemId && selectedItemId.split("_")[0] == "text") {
         const newCoords = e.latLng?.toJSON();
         if (selectedItemId && newCoords) {
@@ -464,21 +468,6 @@ const Map: React.FC<Props> = ({
             setCurrentFreehandPath((prev) => [...prev, e.latLng!.toJSON()]);
           }
           break;
-        case "TEXT":
-        // console.log("here!");
-        // if (selectedItemId) {
-        //   const newCoords = e.latLng?.toJSON();
-        //   if (selectedItemId && noewCoords) {
-        //     setTexts((prevTexts) => ({
-        //       ...prevTexts,
-        //       [selectedItemId]: {
-        //         ...prevTexts[selectedItemId],
-        //         coords: newCoords,
-        //       },
-        //     }));
-        //   }
-        // }
-        // break;
         default:
           break;
       }
@@ -775,7 +764,7 @@ const Map: React.FC<Props> = ({
   };
 
   const deleteElement = async (id: string) => {
-    console.log(id, "++++++--------");
+    console.log("delete ", id);
     const element = id.split("_")[0];
 
     switch (element) {
@@ -866,6 +855,8 @@ const Map: React.FC<Props> = ({
     }
   };
 
+  const handleTextRightClick = () => {};
+
   return (
     <div className="h-full w-full">
       {!isLoaded ? (
@@ -885,30 +876,6 @@ const Map: React.FC<Props> = ({
                 handleMapClick(e);
               }}
             >
-              {/* Element Right Click Menu */}
-              {showElementRightClickMenu && selectedItemId && (
-                <>
-                  <OverlayView
-                    key={selectedItemId}
-                    position={rightClickPosition}
-                    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                  >
-                    <div className="flex py-2 bg-white text-black w-32 font-medium rounded-md shadow-md text-base">
-                      <span
-                        className=" w-full px-2 py-1  hover:bg-orange-200 cursor-pointer"
-                        // onClick={() => deleteElement(selectedItemId)}
-                        onClick={() => {
-                          console.log("Clicked Delete");
-                          deleteElement(selectedItemId);
-                        }}
-                      >
-                        Delete
-                      </span>
-                    </div>
-                  </OverlayView>
-                </>
-              )}
-
               {Object.entries(markers).map(([id, coords]) => (
                 <Marker
                   key={id}
@@ -943,6 +910,7 @@ const Map: React.FC<Props> = ({
                   }}
                 />
               )}
+
               {/* POLYLINE--------------------------- */}
               {Object.entries(polylines).map(([id, path]) => (
                 <Polyline
@@ -1006,6 +974,7 @@ const Map: React.FC<Props> = ({
                 space={space}
                 selfConnectionId={self?.connectionId}
               />
+
               {/* Text ---------------------------------------------- */}
               {Object.entries(texts).map(([id, textData]) => (
                 <TextLabel
@@ -1043,6 +1012,7 @@ const Map: React.FC<Props> = ({
                       }`,
                     }}
                     onClick={(e) => {
+                      console.log("click");
                       setSelectedItemId(id);
                     }}
                     onMouseDown={(e) => {
@@ -1051,7 +1021,6 @@ const Map: React.FC<Props> = ({
                         setSelectedItemId(id);
                       }
                     }}
-                    onMouseMove={(e) => {}}
                     onMouseUp={() => {
                       setIsImageDragging(false);
                     }}
@@ -1060,6 +1029,24 @@ const Map: React.FC<Props> = ({
                   </div>
                 </OverlayView>
               ))}
+
+              {/* Element Right Click Menu */}
+              {showElementRightClickMenu && selectedItemId && (
+                <OverlayView
+                  key={selectedItemId}
+                  position={rightClickPosition}
+                  mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                >
+                  <div className=" flex py-2 bg-slate-500 text-white w-32 font-medium rounded-sm shadow-md text-base">
+                    <span
+                      className=" w-full px-2 py-1  hover:bg-slate-600 cursor-pointer z-50"
+                      onClick={() => deleteElement(selectedItemId)}
+                    >
+                      Delete
+                    </span>
+                  </div>
+                </OverlayView>
+              )}
             </GoogleMap>
 
             {showOverlay && (

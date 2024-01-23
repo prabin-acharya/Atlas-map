@@ -31,10 +31,6 @@ const TextLabel: React.FC<TextLabelProps> = ({
     onTextChange(newValue);
   };
 
-  const handleInputBlur = () => {
-    onTextChange(inputValue);
-  };
-
   useEffect(() => {
     setInputValue(text);
   }, [text]);
@@ -44,42 +40,23 @@ const TextLabel: React.FC<TextLabelProps> = ({
     return fontSize + "px";
   };
 
-  // ================---------------------------------------
-
-  const onOverlayLoad = (overlay: google.maps.OverlayView) => {
-    const div = overlay.getPanes()?.overlayMouseTarget as
-      | HTMLElement
-      | null
-      | undefined;
-
-    if (!div) return;
-
-    const handleMouseDown = (e: globalThis.MouseEvent): void => {
-      setSelectedItemId(id);
-    };
-
-    div.addEventListener("mousedown", handleMouseDown);
-
-    return () => {
-      div.removeEventListener("mousedown", handleMouseDown);
-    };
-  };
-
-  // console.log(text);
-
   return (
     <OverlayView
       position={position}
       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-      onLoad={onOverlayLoad}
     >
       <input
         type="text"
+        id={id}
         value={inputValue}
         onChange={handleInputChange}
         placeholder="Enter text..."
-        // onBlur={handleInputBlur}
         onClick={handleTextClick}
+        onMouseDown={(e) => {
+          if (e.detail == 1) {
+            setSelectedItemId(id);
+          }
+        }}
         className="no-select text-white text-lg font-bold w-fit inline-block whitespace-nowrap z-1000 pointer-events-auto cursor-pointer bg-green-100/0 outline-none select-none  outline"
         style={{
           fontSize: calculateFontSize(),
