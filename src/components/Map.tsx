@@ -16,7 +16,16 @@ import useAblySubscription from "../hooks/useAblySubscription";
 import useSpaceMembers from "../hooks/useMembers";
 
 import { OverlayView } from "@react-google-maps/api";
-import { DrawingMode } from "../types";
+
+import {
+  DrawingMode,
+  ImageOverlay,
+  Library,
+  MapElement,
+  MarkerData,
+  PolylineData,
+  TextData,
+} from "../types";
 import { Member } from "../utils/types";
 import { MemberCursors, YourCursor } from "./Cursors";
 import MapActionBar from "./MapActionBar";
@@ -29,19 +38,7 @@ interface Props {
   selfConnectionId?: string;
 }
 
-type Library = "places" | "geometry" | "visualization" | "drawing";
 const libraries: Library[] = ["places", "geometry", "visualization", "drawing"];
-
-type ImageOverlay = {
-  url: string;
-  coords: google.maps.LatLngLiteral;
-  size: { width: number; height: number };
-};
-
-type TextData = {
-  coords: google.maps.LatLngLiteral;
-  text: string;
-};
 
 const Map: React.FC<Props> = ({
   currentDrawingMode,
@@ -54,18 +51,19 @@ const Map: React.FC<Props> = ({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries: libraries,
   });
+
   const [googleMapInstance, setGoogleMapInstance] =
     useState<google.maps.Map | null>(null);
   const center = useMemo(() => ({ lat: 18.52043, lng: 73.856743 }), []);
 
   const client = useAbly();
+  const { self, otherMembers } = useSpaceMembers(space);
+
   const mapChannel = client.channels.get("map-updates");
   const freehandChannel = client.channels.get("freehand-updates");
 
   const mapId = localStorage.getItem("activeMapId");
   const userId = localStorage.getItem("userId");
-
-  const { self, otherMembers } = useSpaceMembers(space);
 
   const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(10);
   const [cursorPosition, setCursorPosition] = useState<{
@@ -80,30 +78,49 @@ const Map: React.FC<Props> = ({
   const [isImageDragging, setIsImageDragging] = useState(false);
 
   /* Map Elements */
-  const [markers, setMarkers] = useState<
-    Record<string, google.maps.LatLngLiteral>
-  >({});
+  const [mapElements, setMapElements] = useState<MapElement[]>([]);
 
-  const [texts, setTexts] = useState<Record<string, TextData>>({});
-
-  const [freehandPaths, setFreehandPaths] = useState<
-    Record<string, google.maps.LatLngLiteral[]>
-  >({});
   const [currentFreehandPath, setCurrentFreehandPath] = useState<
     google.maps.LatLngLiteral[]
   >([]);
 
-  const [polylines, setPolylines] = useState<{
-    [key: string]: google.maps.LatLngLiteral[];
-  }>({});
-
-  const [polygons, setPolygons] = useState<{
-    [key: string]: google.maps.LatLngLiteral[];
-  }>({});
-
   const [imageOverlays, setImageOverlays] = useState<{
     [key: string]: ImageOverlay;
   }>({});
+
+  function updateElement({
+    element: updatedElement,
+    operation,
+  }: {
+    element: MapElement;
+    operation: "add" | "update" | "delete";
+  }) {
+    switch (operation) {
+      case "add":
+        const newMapElements = [...mapElements, updatedElement];
+        setMapElements(newMapElements);
+        break;
+
+      case "update":
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == updatedElement.id)
+              return { ...element, ...updatedElement };
+            return element;
+          });
+          return updatedData;
+        });
+        break;
+
+      case "delete":
+        setMapElements((prevMapElements) =>
+          prevMapElements.filter((ele) => ele.id !== updatedElement.id)
+        );
+        break;
+      default:
+        console.error("Invalid operation");
+    }
+  }
 
   const fetchMapElements = async () => {
     try {
@@ -111,50 +128,10 @@ const Map: React.FC<Props> = ({
         `https://atlas-map-express-api.up.railway.app/elements?mapId=${mapId}`
       );
 
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch map elements. Status: ${response.status}`
-        );
-      }
-
       const data = await response.json();
-
       const savedElements = data.elements;
-
-      savedElements.forEach((element: any) => {
-        const elementType = element.elementType;
-        switch (elementType) {
-          case "marker":
-            setMarkers((prev) => ({ ...prev, [element.id]: element.coords }));
-            break;
-          case "freehand":
-            setFreehandPaths((prev) => ({
-              ...prev,
-              [element.id]: element.coords,
-            }));
-            break;
-          case "polyline":
-            setPolylines((prev) => ({
-              ...prev,
-              [element.id]: element.coords,
-            }));
-            break;
-          case "polygon":
-            setPolygons((prev) => ({
-              ...prev,
-              [element.id]: element.coords,
-            }));
-            break;
-          case "text":
-            setTexts((prev) => ({
-              ...prev,
-              [element.id]: { text: element.text, coords: element.coords },
-            }));
-            break;
-          default:
-            break;
-        }
-      });
+      console.log("++++++++++++++++++++++++++++++++++", savedElements);
+      setMapElements(savedElements);
     } catch (error) {
       console.error(`Error while fetching elements`);
     }
@@ -172,11 +149,7 @@ const Map: React.FC<Props> = ({
   useAblySubscription(
     mapChannel,
     freehandChannel,
-    setMarkers,
-    setPolylines,
-    setTexts,
-    setFreehandPaths,
-    setPolygons,
+    setMapElements,
     setImageOverlays,
     space
   );
@@ -274,7 +247,13 @@ const Map: React.FC<Props> = ({
           if (latLng !== null) {
             const id = "marker_" + Date.now().toString();
 
-            setMarkers((prev) => ({ ...prev, [id]: latLng.toJSON() }));
+            updateElement({
+              element: {
+                id: id,
+                coords: latLng.toJSON(),
+              },
+              operation: "add",
+            });
 
             const newMarker = latLng.toJSON();
             mapChannel.publish("new-marker", {
@@ -292,9 +271,13 @@ const Map: React.FC<Props> = ({
           if (e.latLng?.toJSON()) {
             const coords = e.latLng.toJSON();
             const id = `text_${Date.now()}`;
-            setTexts({
-              ...texts,
-              [id]: { coords, text: "" },
+            updateElement({
+              element: {
+                id: id,
+                coords: coords,
+                text: "",
+              },
+              operation: "add",
             });
 
             mapChannel.publish("new-text", {
@@ -332,7 +315,14 @@ const Map: React.FC<Props> = ({
               setCurrentDrawingMode(null);
               setCurrentFreehandPath([]);
               const id = "polyline_" + Date.now().toString();
-              setPolylines((prev) => ({ ...prev, [id]: currentFreehandPath }));
+
+              updateElement({
+                element: {
+                  id: id,
+                  coords: currentFreehandPath,
+                },
+                operation: "add",
+              });
 
               mapChannel.publish("new-polyline", {
                 [id]: currentFreehandPath,
@@ -368,11 +358,15 @@ const Map: React.FC<Props> = ({
               setIsDrawingFreehand(false);
               setCurrentDrawingMode(null);
               setCurrentFreehandPath([]);
+
               const id = "polygon_" + Date.now().toString();
-              setPolygons((prev) => ({
-                ...prev,
-                [id]: currentFreehandPath,
-              }));
+              updateElement({
+                element: {
+                  id: id,
+                  coords: currentFreehandPath,
+                },
+                operation: "add",
+              });
 
               mapChannel.publish("new-polygon", {
                 [id]: currentFreehandPath,
@@ -410,13 +404,13 @@ const Map: React.FC<Props> = ({
       if (selectedItemId && selectedItemId.split("_")[0] == "text") {
         const newCoords = e.latLng?.toJSON();
         if (selectedItemId && newCoords) {
-          setTexts((prevTexts) => ({
-            ...prevTexts,
-            [selectedItemId]: {
-              ...prevTexts[selectedItemId],
+          updateElement({
+            element: {
+              id: selectedItemId,
               coords: newCoords,
             },
-          }));
+            operation: "update",
+          });
 
           mapChannel.publish("drag-text", {
             id: selectedItemId,
@@ -437,7 +431,7 @@ const Map: React.FC<Props> = ({
                   element: {
                     id: selectedItemId,
                     coords: newCoords,
-                    text: texts[selectedItemId].text || "",
+                    // text: texts[selectedItemId].text || "",
                   },
                 }),
               }
@@ -494,7 +488,13 @@ const Map: React.FC<Props> = ({
       switch (currentDrawingMode) {
         case "FREEHAND":
           const id = "freehand_" + Date.now().toString();
-          setFreehandPaths((prev) => ({ ...prev, [id]: currentFreehandPath }));
+          updateElement({
+            element: {
+              id: id,
+              coords: currentFreehandPath,
+            },
+            operation: "add",
+          });
 
           mapChannel.publish("new-freehand", {
             [id]: currentFreehandPath,
@@ -539,7 +539,6 @@ const Map: React.FC<Props> = ({
     isDrawingFreehand,
     currentFreehandPath,
     googleMapInstance,
-    markers,
     selectedItemId,
     currentDrawingMode,
   ]);
@@ -572,10 +571,12 @@ const Map: React.FC<Props> = ({
       console.log("marker not addedddd!!!!");
       return;
     }
-    setMarkers((prevMarkers) => {
-      const updatedMarkers = { ...prevMarkers };
-      updatedMarkers[id] = newPosition;
-      return updatedMarkers;
+    updateElement({
+      element: {
+        id: id,
+        coords: newPosition,
+      },
+      operation: "update",
     });
     mapChannel.publish("drag-marker", { id, ...newPosition });
   };
@@ -589,10 +590,13 @@ const Map: React.FC<Props> = ({
       console.log("marker not addedddd!!!!");
       return;
     }
-    setMarkers((prevMarkers) => {
-      const updatedMarkers = { ...prevMarkers };
-      updatedMarkers[id] = newPosition;
-      return updatedMarkers;
+
+    updateElement({
+      element: {
+        id: id,
+        coords: newPosition,
+      },
+      operation: "update",
     });
     mapChannel.publish("update-marker", { id, ...newPosition });
 
@@ -741,6 +745,8 @@ const Map: React.FC<Props> = ({
 
   /* Element Options */
 
+  console.log(mapElements);
+
   const [showElementRightClickMenu, setShowElementRightClickMenu] =
     useState(false);
 
@@ -771,10 +777,12 @@ const Map: React.FC<Props> = ({
 
     switch (element) {
       case "marker":
-        setMarkers((prevMarkers) => {
-          const newMarkers = { ...prevMarkers };
-          delete newMarkers[id];
-          return newMarkers;
+        updateElement({
+          element: {
+            id: id,
+            coords: { lat: 55, lng: 66 },
+          },
+          operation: "delete",
         });
 
         await deleteFromDB(id);
@@ -782,32 +790,44 @@ const Map: React.FC<Props> = ({
         break;
 
       case "freehand":
-        setFreehandPaths((prev) => {
-          const newFreehands = { ...prev };
-          delete newFreehands[id];
-          return newFreehands;
+        updateElement({
+          element: {
+            id: id,
+            coords: currentFreehandPath,
+          },
+          operation: "delete",
         });
 
         await deleteFromDB(id);
         break;
 
       case "polyline":
-        console.log("cased polyline");
-
-        setPolylines((prev) => {
-          const newPolylines = { ...prev };
-          delete newPolylines[id];
-          return newPolylines;
+        updateElement({
+          element: {
+            id: id,
+            coords: [{ lat: 55, lng: 66 }],
+          },
+          operation: "delete",
         });
 
         await deleteFromDB(id);
         break;
 
       case "polygon":
-        setPolygons((prev) => {
-          const newPolylines = { ...prev };
-          delete newPolylines[id];
-          return newPolylines;
+        updateElement({
+          element: {
+            id: id,
+            coords: currentFreehandPath,
+          },
+          operation: "delete",
+        });
+
+        updateElement({
+          element: {
+            id: id,
+            coords: { lat: 43, lng: 54 },
+          },
+          operation: "delete",
         });
         await deleteFromDB(id);
 
@@ -818,18 +838,22 @@ const Map: React.FC<Props> = ({
   };
 
   const handleTextChange = async (
-    newText: string,
     id: string,
-    textData: TextData
+    coords: google.maps.LatLngLiteral,
+    updatedText: string
   ) => {
-    setTexts({
-      ...texts,
-      [id]: { ...textData, text: newText },
+    updateElement({
+      element: {
+        id: id,
+        coords: coords,
+        text: updatedText,
+      },
+      operation: "update",
     });
 
     mapChannel.publish("update-text", {
       id,
-      updatedText: newText,
+      updatedText,
     });
 
     try {
@@ -845,8 +869,8 @@ const Map: React.FC<Props> = ({
             mapId: mapId,
             element: {
               id,
-              coords: textData.coords,
-              text: newText,
+              coords: coords,
+              text: updatedText,
             },
           }),
         }
@@ -856,6 +880,37 @@ const Map: React.FC<Props> = ({
       console.log(err);
     }
   };
+
+  const {
+    markersArray,
+    polylineArray,
+    polygonArray,
+    freehandArray,
+    textArray,
+  } = mapElements.reduce(
+    (acc: any, obj: any) => {
+      const [type, id] = obj.id.split("_");
+      if (type === "marker") {
+        acc.markersArray.push(obj);
+      } else if (type === "polyline") {
+        acc.polylineArray.push(obj);
+      } else if (type === "polygon") {
+        acc.polygonArray.push(obj);
+      } else if (type === "freehand") {
+        acc.freehandArray.push(obj);
+      } else if (type === "text") {
+        acc.textArray.push(obj);
+      }
+      return acc;
+    },
+    {
+      markersArray: [],
+      polylineArray: [],
+      polygonArray: [],
+      freehandArray: [],
+      textArray: [],
+    }
+  );
 
   return (
     <div className="h-full w-full">
@@ -876,7 +931,7 @@ const Map: React.FC<Props> = ({
                 handleMapClick(e);
               }}
             >
-              {Object.entries(markers).map(([id, coords]) => (
+              {markersArray.map(({ id, coords }: MarkerData) => (
                 <Marker
                   key={id}
                   position={coords}
@@ -888,10 +943,10 @@ const Map: React.FC<Props> = ({
               ))}
 
               {/* FREEHAND Drawing------------------------------------ */}
-              {Object.entries(freehandPaths).map(([id, path]) => (
+              {freehandArray.map(({ id, coords }: PolylineData) => (
                 <Polyline
                   key={id}
-                  path={path}
+                  path={coords}
                   options={{
                     strokeWeight: 5,
                     strokeColor: "#FF0000",
@@ -912,10 +967,11 @@ const Map: React.FC<Props> = ({
               )}
 
               {/* POLYLINE--------------------------- */}
-              {Object.entries(polylines).map(([id, path]) => (
+              {/* {Object.entries(mapElements.polylines).map(([id, path]) => ( */}
+              {polylineArray.map(({ id, coords }: PolylineData) => (
                 <Polyline
                   key={id}
-                  path={path}
+                  path={coords}
                   options={{
                     strokeWeight: 4,
                     strokeColor: "#FF0000",
@@ -941,10 +997,10 @@ const Map: React.FC<Props> = ({
                 )}
 
               {/* POLYGON--------------------------- */}
-              {Object.entries(polygons).map(([id, path]) => (
+              {polygonArray.map(({ id, coords }: PolylineData) => (
                 <Polygon
                   key={id}
-                  path={path}
+                  path={coords}
                   options={{
                     strokeWeight: 4,
                     strokeColor: "#FF0000",
@@ -976,22 +1032,22 @@ const Map: React.FC<Props> = ({
               />
 
               {/* Text ---------------------------------------------- */}
-              {Object.entries(texts).map(([id, textData]) => (
+              {textArray.map(({ id, coords, text }: TextData) => (
                 <TextLabel
                   key={id}
                   id={id}
-                  position={textData.coords}
-                  text={textData.text}
+                  position={coords}
+                  text={text}
                   zoomLevel={currentZoomLevel}
                   setSelectedItemId={setSelectedItemId}
-                  onTextChange={(newText) =>
-                    handleTextChange(newText, id, textData)
+                  onTextChange={(updatedText) =>
+                    handleTextChange(id, coords, updatedText)
                   }
                 />
               ))}
 
               {/* IMAGE---------------------------------------- */}
-              {Object.entries(imageOverlays).map(([id, image]) => (
+              {/* {Object.entries(imageOverlays).map(([id, image]) => (
                 <OverlayView
                   key={id}
                   position={image.coords}
@@ -1028,7 +1084,7 @@ const Map: React.FC<Props> = ({
                     <img src={image.url} className="w-full h-full shadow-lg" />
                   </div>
                 </OverlayView>
-              ))}
+              ))} */}
 
               {/* Element Right Click Menu */}
               {showElementRightClickMenu && selectedItemId && (

@@ -1,5 +1,6 @@
 import { Space } from "@ably/spaces";
 import { useEffect } from "react";
+import { MapElement } from "../types";
 
 type TextData = {
   coords: google.maps.LatLngLiteral;
@@ -15,21 +16,7 @@ type ImageOverlay = {
 const useAblySubscription = (
   mapChannel: any,
   freehandChannel: any,
-  setMarkers: React.Dispatch<
-    React.SetStateAction<Record<string, google.maps.LatLngLiteral>>
-  >,
-  setPolylines: React.Dispatch<
-    React.SetStateAction<{ [key: string]: google.maps.LatLngLiteral[] }>
-  >,
-  setTexts: React.Dispatch<React.SetStateAction<Record<string, TextData>>>,
-  setFreehandPaths: React.Dispatch<
-    React.SetStateAction<Record<string, google.maps.LatLngLiteral[]>>
-  >,
-  setPolygons: React.Dispatch<
-    React.SetStateAction<{
-      [key: string]: google.maps.LatLngLiteral[];
-    }>
-  >,
+  setMapElements: React.Dispatch<React.SetStateAction<MapElement[]>>,
   setImageOverlays: React.Dispatch<
     React.SetStateAction<{
       [key: string]: ImageOverlay;
@@ -47,7 +34,8 @@ const useAblySubscription = (
         if (message.clientId == space?.client.auth.clientId) return;
         const { id, ...newMarker } = message.data;
         console.log();
-        setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: newMarker }));
+        // setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: newMarker }));
+        setMapElements((prev) => [...prev, { id, coords: newMarker }]);
       }
     );
 
@@ -58,7 +46,15 @@ const useAblySubscription = (
         clientId: string;
       }) => {
         const { id, ...updatedMarker } = message.data;
-        setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: updatedMarker }));
+        // setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: updatedMarker }));
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == id)
+              return { ...element, ...{ id, coords: updatedMarker } };
+            return element;
+          });
+          return updatedData;
+        });
       }
     );
 
@@ -71,10 +67,19 @@ const useAblySubscription = (
         if (message.clientId == space?.client.auth.clientId) return;
 
         const { id, ...draggedMarker } = message.data;
-        setMarkers((prevMarkers) => ({
-          ...prevMarkers,
-          [id]: draggedMarker,
-        }));
+        // setMarkers((prevMarkers) => ({
+        //   ...prevMarkers,
+        //   [id]: draggedMarker,
+        // }));
+
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == id)
+              return { ...element, ...{ id, coords: draggedMarker } };
+            return element;
+          });
+          return updatedData;
+        });
       }
     );
 
@@ -90,10 +95,18 @@ const useAblySubscription = (
         if (message.clientId == space?.client.auth.clientId) return;
 
         const { id, updatedText } = message.data;
-        setTexts((prev) => ({
-          ...prev,
-          [id]: { ...prev[id], text: updatedText },
-        }));
+        // setTexts((prev) => ({
+        //   ...prev,
+        //   [id]: { ...prev[id], text: updatedText },
+        // }));
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == id)
+              return { ...element, ...{ id, text: updatedText } };
+            return element;
+          });
+          return updatedData;
+        });
       }
     );
 
@@ -109,10 +122,18 @@ const useAblySubscription = (
         if (message.clientId == space?.client.auth.clientId) return;
 
         const { id, position } = message.data;
-        setTexts((prev) => ({
-          ...prev,
-          [id]: { ...prev[id], position },
-        }));
+        // setTexts((prev) => ({
+        //   ...prev,
+        //   [id]: { ...prev[id], position },
+        // }));
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == id)
+              return { ...element, ...{ id, coords: position } };
+            return element;
+          });
+          return updatedData;
+        });
       }
     );
 
@@ -126,10 +147,18 @@ const useAblySubscription = (
 
         const id = Object.keys(message.data)[0];
         const points = message.data[id];
-        setPolylines((prev) => ({
-          ...prev,
-          [id]: points,
-        }));
+        // setPolylines((prev) => ({
+        //   ...prev,
+        //   [id]: points,
+        // }));
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == id)
+              return { ...element, ...{ id, coords: points } };
+            return element;
+          });
+          return updatedData;
+        });
       }
     );
 
@@ -143,7 +172,15 @@ const useAblySubscription = (
 
         const id = Object.keys(message.data)[0];
         const points = message.data[id];
-        setFreehandPaths((prev) => ({ ...prev, [id]: points }));
+        // setFreehandPaths((prev) => ({ ...prev, [id]: points }));
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == id)
+              return { ...element, ...{ id, coords: points } };
+            return element;
+          });
+          return updatedData;
+        });
       }
     );
 
@@ -157,7 +194,15 @@ const useAblySubscription = (
 
         const id = Object.keys(message.data)[0];
         const points = message.data[id];
-        setPolygons((prev) => ({ ...prev, [id]: points }));
+        // setPolygons((prev) => ({ ...prev, [id]: points }));
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == id)
+              return { ...element, ...{ id, coords: points } };
+            return element;
+          });
+          return updatedData;
+        });
       }
     );
 
@@ -174,7 +219,8 @@ const useAblySubscription = (
         const id = Object.keys(message.data)[0];
         const { coords, text } = message.data[id];
 
-        setTexts((prev) => ({ ...prev, [id]: { coords, text } }));
+        // setTexts((prev) => ({ ...prev, [id]: { coords, text } }));
+        setMapElements((prev) => [...prev, { id, coords, text }]);
       }
     );
 
