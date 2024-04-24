@@ -1,10 +1,4 @@
-import React, {
-  Dispatch,
-  SetStateAction,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 import {
   GoogleMap,
@@ -29,6 +23,7 @@ import {
   fetchMapElements,
   saveElementToDB,
   updateElementInDB,
+  updateMapDetails,
 } from "../utils/db";
 
 import {
@@ -68,7 +63,10 @@ const Map: React.FC<Props> = ({
 
   const [googleMapInstance, setGoogleMapInstance] =
     useState<google.maps.Map | null>(null);
-  const center = useMemo(() => ({ lat: 18.52043, lng: 73.856743 }), []);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({
+    lat: 18.52043,
+    lng: 73.856743,
+  });
 
   const client = useAbly();
   const { self, otherMembers } = useSpaceMembers(space);
@@ -108,8 +106,16 @@ const Map: React.FC<Props> = ({
     element: MapElement;
     operation: "add" | "update" | "delete";
   }) {
+    let toBeCenter: { lat: number; lng: number } = mapCenter;
+    if (Array.isArray(updatedElement.coords)) {
+      toBeCenter = updatedElement.coords[updatedElement.coords.length - 1];
+    } else {
+      toBeCenter = updatedElement.coords;
+    }
+
     switch (operation) {
       case "add":
+        console.log(updatedElement.coords);
         const newMapElements = [...mapElements, updatedElement];
         setMapElements(newMapElements);
 
@@ -119,6 +125,8 @@ const Map: React.FC<Props> = ({
 
         if (!mapId || !userId) return;
         saveElementToDB(mapId, userId, updatedElement);
+
+        updateMapDetails(mapId, toBeCenter, currentZoomLevel);
 
         break;
 
@@ -135,6 +143,9 @@ const Map: React.FC<Props> = ({
         mapChannel.publish("update-element", {
           ...updatedElement,
         });
+
+        if (!mapId || !userId) return;
+        // updateMapDetails(mapId, toBeCenter, currentZoomLevel);
 
         break;
 
@@ -162,10 +173,28 @@ const Map: React.FC<Props> = ({
 
     if (!mapId) return;
 
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          if (latitude && longitude)
+            setMapCenter({ lat: latitude, lng: longitude });
+        },
+        (error) => {
+          console.error("Error getting user location:", error);
+        }
+      );
+    } else {
+      console.error("Geolocation is not supported by this browser.");
+    }
+
     const fetchData = async () => {
       try {
-        const savedElements = await fetchMapElements(mapId);
+        const [savedElements, mapDetails] = await fetchMapElements(mapId);
         setMapElements(savedElements);
+        console.log(mapDetails);
+        if (mapDetails.center) setMapCenter(mapDetails.center);
+        if (mapDetails.zoomLevel) setCurrentZoomLevel(mapDetails.zoomLevel);
       } catch (error) {
         console.log(error);
       }
@@ -752,8 +781,8 @@ const Map: React.FC<Props> = ({
             <GoogleMap
               onLoad={(map) => setGoogleMapInstance(map)}
               mapContainerClassName="h-full w-full rounded border"
-              center={center}
-              zoom={10}
+              center={mapCenter}
+              zoom={currentZoomLevel}
               onZoomChanged={handleZoomChanged}
               onMouseOut={(e) => handleCursorLeave(e)}
               onMouseMove={(e) => handleCursorMove(e)}

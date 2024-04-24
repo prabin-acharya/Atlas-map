@@ -3,13 +3,14 @@ import { MapElement } from "../types";
 export const fetchMapElements = async (mapId: string): Promise<any[]> => {
   try {
     const response = await fetch(
-      `https://atlas-map-express-api.up.railway.app/elements?mapId=${mapId}`
+      `https://atlas-map-express-api.up.railway.app/map/${mapId}`
     );
 
     const data = await response.json();
     const savedElements = data.elements;
-    console.log(savedElements);
-    return savedElements;
+    const mapDetails = data.mapDetails;
+
+    return [savedElements, mapDetails];
   } catch (error) {
     console.error(`Error while fetching elements`);
     return [];
@@ -86,5 +87,27 @@ export const deleteElementFromDB = async (id: string): Promise<void> => {
     console.log(data.message);
   } catch (err) {
     console.log(err);
+  }
+};
+
+export const updateMapDetails = async (
+  mapId: string,
+  center: { lng: number; lat: number },
+  zoomLevel: number
+): Promise<void> => {
+  try {
+    const response = await fetch(`http://localhost:5000/map/${mapId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ center, zoomLevel }),
+    });
+
+    const data = await response.json();
+
+    console.log(data);
+  } catch (error) {
+    console.error("Error updating map:", error);
   }
 };
