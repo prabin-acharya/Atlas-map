@@ -166,7 +166,7 @@ const LiveCursors = () => {
   };
 
   useEffect(() => {
-    const updateMapTitleSubscription = mapChannel.subscribe(
+    const updateMapTitleSubscription: any = mapChannel.subscribe(
       "update-mapTitle",
       (message: { data: { title: string }; clientId: string }) => {
         if (message.clientId == space?.client.auth.clientId) return;
