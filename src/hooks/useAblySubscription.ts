@@ -2,11 +2,6 @@ import { Space } from "@ably/spaces";
 import { useEffect } from "react";
 import { MapElement } from "../types";
 
-type TextData = {
-  coords: google.maps.LatLngLiteral;
-  text: string;
-};
-
 type ImageOverlay = {
   url: string;
   coords: google.maps.LatLngLiteral;
@@ -25,17 +20,27 @@ const useAblySubscription = (
   space?: Space
 ) => {
   useEffect(() => {
-    const newMarkerSubscription = mapChannel.subscribe(
-      "new-marker",
-      (message: {
-        data: { id: string; lat: number; lng: number };
-        clientId: string;
-      }) => {
+    const addElementSubscription = mapChannel.subscribe(
+      "new-element",
+      (message: { data: MapElement; clientId: string }) => {
         if (message.clientId == space?.client.auth.clientId) return;
-        const { id, ...newMarker } = message.data;
-        console.log();
-        // setMarkers((prevMarkers) => ({ ...prevMarkers, [id]: newMarker }));
-        setMapElements((prev) => [...prev, { id, coords: newMarker }]);
+        setMapElements((prev) => [...prev, message.data]);
+      }
+    );
+
+    const updateElementSubscription = mapChannel.subscribe(
+      "update-element",
+      (message: { data: MapElement; clientId: string }) => {
+        if (message.clientId == space?.client.auth.clientId) return;
+        setMapElements((prev) => [...prev, message.data]);
+        setMapElements((prevElements) => {
+          const updatedData = prevElements.map((element) => {
+            if (element.id == message.data.id)
+              return { ...element, ...{ ...message.data } };
+            return element;
+          });
+          return updatedData;
+        });
       }
     );
 
@@ -83,33 +88,6 @@ const useAblySubscription = (
       }
     );
 
-    const updateTextSubscription = mapChannel.subscribe(
-      "update-text",
-      (message: {
-        data: {
-          id: string;
-          updatedText: string;
-        };
-        clientId: string;
-      }) => {
-        if (message.clientId == space?.client.auth.clientId) return;
-
-        const { id, updatedText } = message.data;
-        // setTexts((prev) => ({
-        //   ...prev,
-        //   [id]: { ...prev[id], text: updatedText },
-        // }));
-        setMapElements((prevElements) => {
-          const updatedData = prevElements.map((element) => {
-            if (element.id == id)
-              return { ...element, ...{ id, text: updatedText } };
-            return element;
-          });
-          return updatedData;
-        });
-      }
-    );
-
     const dragTextSubscription = mapChannel.subscribe(
       "drag-text",
       (message: {
@@ -134,93 +112,6 @@ const useAblySubscription = (
           });
           return updatedData;
         });
-      }
-    );
-
-    const newPolylineSubscription = mapChannel.subscribe(
-      "new-polyline",
-      (message: {
-        data: { [key: string]: { lat: number; lng: number }[] };
-        clientId: string;
-      }) => {
-        if (message.clientId == space?.client.auth.clientId) return;
-
-        const id = Object.keys(message.data)[0];
-        const points = message.data[id];
-        // setPolylines((prev) => ({
-        //   ...prev,
-        //   [id]: points,
-        // }));
-        setMapElements((prevElements) => {
-          const updatedData = prevElements.map((element) => {
-            if (element.id == id)
-              return { ...element, ...{ id, coords: points } };
-            return element;
-          });
-          return updatedData;
-        });
-      }
-    );
-
-    const newFreehnadSubscription = mapChannel.subscribe(
-      "new-freehand",
-      (message: {
-        data: { [key: string]: { lat: number; lng: number }[] };
-        clientId: string;
-      }) => {
-        if (message.clientId == space?.client.auth.clientId) return;
-
-        const id = Object.keys(message.data)[0];
-        const points = message.data[id];
-        // setFreehandPaths((prev) => ({ ...prev, [id]: points }));
-        setMapElements((prevElements) => {
-          const updatedData = prevElements.map((element) => {
-            if (element.id == id)
-              return { ...element, ...{ id, coords: points } };
-            return element;
-          });
-          return updatedData;
-        });
-      }
-    );
-
-    const newPolygonSubscription = mapChannel.subscribe(
-      "new-polygon",
-      (message: {
-        data: { [key: string]: { lat: number; lng: number }[] };
-        clientId: string;
-      }) => {
-        if (message.clientId == space?.client.auth.clientId) return;
-
-        const id = Object.keys(message.data)[0];
-        const points = message.data[id];
-        // setPolygons((prev) => ({ ...prev, [id]: points }));
-        setMapElements((prevElements) => {
-          const updatedData = prevElements.map((element) => {
-            if (element.id == id)
-              return { ...element, ...{ id, coords: points } };
-            return element;
-          });
-          return updatedData;
-        });
-      }
-    );
-
-    const newTextSubscription = mapChannel.subscribe(
-      "new-text",
-      (message: {
-        data: {
-          [key: string]: { text: string; coords: google.maps.LatLngLiteral };
-        };
-        clientId: string;
-      }) => {
-        if (message.clientId == space?.client.auth.clientId) return;
-
-        const id = Object.keys(message.data)[0];
-        const { coords, text } = message.data[id];
-
-        // setTexts((prev) => ({ ...prev, [id]: { coords, text } }));
-        setMapElements((prev) => [...prev, { id, coords, text }]);
       }
     );
 
@@ -265,15 +156,12 @@ const useAblySubscription = (
     );
 
     return () => {
-      newMarkerSubscription.unsubscribe();
+      // newMarkerSubscription.unsubscribe();
+      addElementSubscription.unsubscribe();
+      updateElementSubscription.unsubscribe();
       updateMarkerSubscription.unsubscribe();
       dragMarkerSubscription.unsubscribe();
-      newTextSubscription.unsubscribe();
-      updateTextSubscription.unsubscribe();
       dragTextSubscription.unsubscribe();
-      newPolylineSubscription.unsubscribe();
-      newFreehnadSubscription.unsubscribe();
-      newPolygonSubscription.unsubscribe();
       newImageSubscription.unsubscribe();
     };
   }, [mapChannel, space]);
