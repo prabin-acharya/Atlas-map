@@ -96,13 +96,16 @@ export const updateMapDetails = async (
   zoomLevel: number
 ): Promise<void> => {
   try {
-    const response = await fetch(`http://localhost:5000/map/${mapId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ center, zoomLevel }),
-    });
+    const response = await fetch(
+      `https://atlas-map-express-api.up.railway.app/map/${mapId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ center, zoomLevel }),
+      }
+    );
 
     const data = await response.json();
 
