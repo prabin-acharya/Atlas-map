@@ -394,11 +394,6 @@ const Map: React.FC<Props> = ({
             operation: "update",
           });
 
-          mapChannel.publish("drag-text", {
-            id: selectedItemId,
-            coords: newCoords,
-          });
-
           await updateElementInDB(selectedItemId, { coords: newCoords });
         }
       }
@@ -725,7 +720,6 @@ const Map: React.FC<Props> = ({
     coords: google.maps.LatLngLiteral,
     updatedText: string
   ) => {
-    console.log("ttt");
     updateElement({
       element: {
         id: id,

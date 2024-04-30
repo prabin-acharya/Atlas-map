@@ -32,11 +32,11 @@ const useAblySubscription = (
       "update-element",
       (message: { data: MapElement; clientId: string }) => {
         if (message.clientId == space?.client.auth.clientId) return;
-        setMapElements((prev) => [...prev, message.data]);
         setMapElements((prevElements) => {
           const updatedData = prevElements.map((element) => {
-            if (element.id == message.data.id)
-              return { ...element, ...{ ...message.data } };
+            if (element.id == message.data.id) {
+              return { ...element, ...message.data };
+            }
             return element;
           });
           return updatedData;
